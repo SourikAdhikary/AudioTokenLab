@@ -44,6 +44,10 @@ def main(argv: list[str] | None = None) -> int:
             "publication_summary.json",
             "summary_chart.svg",
             "listening_examples.md",
+            "listening_study.csv",
+            "listening_study.md",
+            "serving_stack_report.json",
+            "serving_stack_report.md",
         ):
             path = run_dir / name
             status = "ok" if path.exists() else "missing"

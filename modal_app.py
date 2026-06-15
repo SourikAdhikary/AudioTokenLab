@@ -20,6 +20,7 @@ image = (
     .pip_install(
         "torch>=2.0",
         "encodec>=0.1.1",
+        "datasets[audio]>=2.19.0",
         "faster-whisper>=1.0.0",
         "speechbrain>=1.0.0",
     )
@@ -153,17 +154,9 @@ def run_speech_asr_profile() -> dict:
 
 @app.function(gpu="L4", timeout=90 * 60, memory=8192)
 def run_librispeech_asr_profile(max_clips: int = 24, strategy_set: str = "final") -> dict:
-    from audiotokenlab.asr_eval import (
-        transcribe_samples_with_faster_whisper,
-        write_asr_artifacts,
-    )
     from audiotokenlab.datasets import load_dataset
     from audiotokenlab.librispeech import prepare_librispeech_slice
     from audiotokenlab.runner import run_profile
-    from audiotokenlab.speaker_eval import (
-        evaluate_speaker_similarity_with_speechbrain,
-        write_speaker_artifacts,
-    )
 
     work_dir = Path("/tmp/audiotokenlab_librispeech")
     dataset_dir = work_dir / "dataset"
@@ -204,19 +197,7 @@ def run_librispeech_asr_profile(max_clips: int = 24, strategy_set: str = "final"
     )
 
     rows = run_profile(str(config_path))
-    asr_rows = transcribe_samples_with_faster_whisper(
-        output_dir / "samples",
-        references,
-        model_name="tiny.en",
-        device="cpu",
-        compute_type="int8",
-    )
-    write_asr_artifacts(output_dir, asr_rows)
-    speaker_rows = evaluate_speaker_similarity_with_speechbrain(
-        output_dir / "samples",
-        device="cpu",
-    )
-    write_speaker_artifacts(output_dir, speaker_rows)
+    asr_rows, speaker_rows = _write_quality_artifacts(output_dir, references)
     archive = _zip_directory(output_dir)
     return {
         "run_id": "encodec_librispeech_asr",
@@ -231,6 +212,97 @@ def run_librispeech_asr_profile(max_clips: int = 24, strategy_set: str = "final"
     }
 
 
+@app.function(gpu="L4", timeout=120 * 60, memory=12288)
+def run_broader_speech_asr_profile(
+    max_clips_per_source: int = 8,
+    strategy_set: str = "extended",
+    include_librispeech: bool = True,
+    run_serving_microbench: bool = False,
+) -> dict:
+    from audiotokenlab.corpora import (
+        merge_wav_manifests,
+        prepare_huggingface_speech_slice,
+    )
+    from audiotokenlab.datasets import load_dataset
+    from audiotokenlab.librispeech import prepare_librispeech_slice
+    from audiotokenlab.runner import run_profile
+    from audiotokenlab.serving import write_serving_stack_report
+
+    work_dir = Path("/tmp/audiotokenlab_broader_speech")
+    dataset_dir = work_dir / "dataset"
+    output_dir = work_dir / "runs" / "encodec_broader_speech_asr"
+    manifest_paths = []
+    if include_librispeech:
+        manifest_paths.append(
+            prepare_librispeech_slice(
+                dataset_dir / "librispeech",
+                max_clips=max_clips_per_source,
+                sample_rate=24000,
+            )
+        )
+    manifest_paths.append(
+        prepare_huggingface_speech_slice(
+            dataset_dir / "huggingface",
+            max_clips_per_source=max_clips_per_source,
+            sample_rate=24000,
+        )
+    )
+    manifest_path = merge_wav_manifests(
+        manifest_paths,
+        dataset_dir / "combined_manifest.json",
+    )
+    clips = load_dataset({"type": "wav_manifest", "path": str(manifest_path)})
+    references = {
+        clip.clip_id: str(clip.metadata.get("transcript", ""))
+        for clip in clips
+    }
+    config_path = work_dir / "broader_speech_asr_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "run_id": "encodec_broader_speech_asr",
+                "output_dir": str(output_dir),
+                "dataset": {"type": "wav_manifest", "path": str(manifest_path)},
+                "tokenizer": {
+                    "name": "encodec",
+                    "model_name": "encodec_24khz",
+                    "bandwidth": 6.0,
+                    "device": "cuda",
+                },
+                "strategies": _librispeech_strategies(strategy_set),
+                "kv_cache": {
+                    "layers": 24,
+                    "hidden_size": 1024,
+                    "bytes_per_element": 2,
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    rows = run_profile(str(config_path))
+    asr_rows, speaker_rows = _write_quality_artifacts(output_dir, references)
+    if run_serving_microbench:
+        write_serving_stack_report(
+            output_dir,
+            run_torch_microbench=True,
+            device="cuda",
+        )
+    archive = _zip_directory(output_dir)
+    return {
+        "run_id": "encodec_broader_speech_asr",
+        "row_count": len(rows),
+        "asr_row_count": len(asr_rows),
+        "speaker_row_count": len(speaker_rows),
+        "clip_count": len(clips),
+        "strategy_set": strategy_set,
+        "output_dir": str(output_dir),
+        "archive_name": "encodec_broader_speech_asr.zip",
+        "archive_bytes": archive,
+    }
+
+
 @app.local_entrypoint()
 def main(
     config_path: str = DEFAULT_CONFIG,
@@ -238,10 +310,20 @@ def main(
     extract: bool = True,
     speech_asr: bool = False,
     librispeech_asr: bool = False,
+    broader_speech_asr: bool = False,
     max_clips: int = 24,
+    max_clips_per_source: int = 8,
     strategy_set: str = "final",
+    serving_microbench: bool = False,
 ) -> None:
-    if librispeech_asr:
+    if broader_speech_asr:
+        result = run_broader_speech_asr_profile.remote(
+            max_clips_per_source,
+            strategy_set,
+            True,
+            serving_microbench,
+        )
+    elif librispeech_asr:
         result = run_librispeech_asr_profile.remote(max_clips, strategy_set)
     elif speech_asr:
         result = run_speech_asr_profile.remote()
@@ -326,7 +408,61 @@ def _librispeech_strategies(strategy_set: str) -> list[dict]:
             },
             {"name": "patch", "patch_size": 4},
         ]
+    if strategy_set == "extended":
+        return [
+            *base,
+            {
+                "name": "vad_salience",
+                "label": "vad_salience",
+                "factor": 2,
+                "noise_floor_ratio": 1.8,
+                "absolute_threshold": 0.04,
+                "min_speech_frames": 2,
+                "hangover_frames": 1,
+            },
+            {
+                "name": "learned_selector",
+                "label": "linear_selector_v1",
+                "factor": 2,
+                "weights": {
+                    "energy": 2.2,
+                    "onset": 1.4,
+                    "transition": 1.0,
+                    "speech_activity": 1.8,
+                    "center": 0.15,
+                },
+            },
+            {"name": "patch", "patch_size": 4},
+        ]
     raise ValueError(f"Unsupported strategy_set: {strategy_set}")
+
+
+def _write_quality_artifacts(output_dir: Path, references: dict[str, str]) -> tuple[list[dict], list[dict]]:
+    from audiotokenlab.asr_eval import (
+        transcribe_samples_with_faster_whisper,
+        write_asr_artifacts,
+    )
+    from audiotokenlab.publication import write_publication_artifacts
+    from audiotokenlab.speaker_eval import (
+        evaluate_speaker_similarity_with_speechbrain,
+        write_speaker_artifacts,
+    )
+
+    asr_rows = transcribe_samples_with_faster_whisper(
+        output_dir / "samples",
+        references,
+        model_name="tiny.en",
+        device="cpu",
+        compute_type="int8",
+    )
+    write_asr_artifacts(output_dir, asr_rows)
+    speaker_rows = evaluate_speaker_similarity_with_speechbrain(
+        output_dir / "samples",
+        device="cpu",
+    )
+    write_speaker_artifacts(output_dir, speaker_rows)
+    write_publication_artifacts(output_dir)
+    return asr_rows, speaker_rows
 
 
 def _zip_directory(directory: Path) -> bytes:

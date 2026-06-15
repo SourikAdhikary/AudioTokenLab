@@ -20,10 +20,15 @@ PREFERRED_EXAMPLE_STRATEGIES = (
 
 
 def write_publication_artifacts(output_dir: Path) -> dict:
+    from audiotokenlab.listening_study import write_listening_study_artifacts
+    from audiotokenlab.serving import write_serving_stack_report
+
     metrics_rows = _read_csv_dicts(output_dir / "metrics.csv")
     asr_rows = _read_csv_dicts(output_dir / "asr_metrics.csv")
     speaker_rows = _read_csv_dicts(output_dir / "speaker_metrics.csv")
     summary = build_publication_summary(metrics_rows, asr_rows, speaker_rows)
+    summary["listening_study"] = write_listening_study_artifacts(output_dir)
+    summary["serving_stack"] = write_serving_stack_report(output_dir)
     (output_dir / "publication_summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True),
         encoding="utf-8",

@@ -40,6 +40,12 @@ asr = [
 speaker = [
   "speechbrain>=1.0.0"
 ]
+datasets = [
+  "datasets[audio]>=2.19.0"
+]
+serving = [
+  "torch>=2.0"
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

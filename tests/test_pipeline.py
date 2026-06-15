@@ -15,6 +15,7 @@ from audiotokenlab.asr_eval import (
 )
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
+from audiotokenlab.corpora import merge_wav_manifests
 from audiotokenlab.datasets import load_dataset
 from audiotokenlab.librispeech import (
     parse_librispeech_transcripts,
@@ -25,6 +26,8 @@ from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.publication import write_publication_artifacts
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
+from audiotokenlab.listening_study import write_listening_study_artifacts
+from audiotokenlab.serving import write_serving_stack_report
 from audiotokenlab.speaker_eval import summarize_speaker, write_speaker_artifacts
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
 from audiotokenlab.tokenizers import build_tokenizer
@@ -93,6 +96,50 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(clips[0].clip_id, "clip_a")
         self.assertEqual(clips[0].metadata["transcript"], "hello audio tokens")
+
+    def test_merge_wav_manifests_keeps_dataset_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            audio_path = root / "clip.wav"
+            write_wav(audio_path, tuple([0.0] * 800), 8000)
+            left = root / "left.json"
+            right = root / "right.json"
+            left.write_text(
+                json.dumps(
+                    {
+                        "clips": [
+                            {
+                                "clip_id": "left_clip",
+                                "path": str(audio_path),
+                                "transcript": "left",
+                                "source": "dataset_a",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            right.write_text(
+                json.dumps(
+                    {
+                        "clips": [
+                            {
+                                "clip_id": "right_clip",
+                                "path": str(audio_path),
+                                "transcript": "right",
+                                "source": "dataset_b",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            merged = merge_wav_manifests([left, right], root / "merged.json")
+            clips = load_dataset({"type": "wav_manifest", "path": str(merged)})
+
+        self.assertEqual([clip.clip_id for clip in clips], ["left_clip", "right_clip"])
+        self.assertEqual(clips[1].metadata["source"], "dataset_b")
 
     def test_librispeech_transcript_parser(self) -> None:
         parsed = parse_librispeech_transcripts(
@@ -282,6 +329,71 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(compressed.tokens, (2, 11, 6, 15))
         self.assertEqual(compressed.metadata["decode_repeat_counts"], [3, 3])
+
+    def test_vad_salience_prefers_speech_activity_frames(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 2, 11, 3, 12, 4, 13, 5, 14, 6, 15),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.12,
+            metadata={
+                "token_layout": "frame_major",
+                "frame_count": 6,
+                "frame_energies": [0.01, 0.02, 0.9, 0.8, 0.03, 0.02],
+            },
+        )
+        compressed = compress_tokens(
+            bundle,
+            {
+                "name": "vad_salience",
+                "factor": 3,
+                "absolute_threshold": 0.2,
+                "min_speech_frames": 1,
+                "hangover_frames": 0,
+                "transition_weight": 0.0,
+                "onset_weight": 1.0,
+            },
+        )
+
+        self.assertEqual(compressed.tokens, (3, 12, 4, 13))
+        self.assertEqual(compressed.metadata["decode_repeat_counts"], [3, 3])
+        self.assertGreater(compressed.metadata["speech_activity_ratio"], 0.0)
+
+    def test_learned_selector_accepts_linear_weights(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 2, 11, 3, 12, 4, 13),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.08,
+            metadata={
+                "token_layout": "frame_major",
+                "frame_count": 4,
+                "frame_energies": [0.1, 0.7, 0.2, 0.8],
+            },
+        )
+        compressed = compress_tokens(
+            bundle,
+            {
+                "name": "learned_selector",
+                "factor": 2,
+                "weights": {
+                    "energy": 10.0,
+                    "transition": 0.0,
+                    "onset": 0.0,
+                    "speech_activity": 0.0,
+                    "center": 0.0,
+                },
+            },
+        )
+
+        self.assertEqual(compressed.tokens, (2, 11, 4, 13))
+        self.assertEqual(compressed.metadata["selector_type"], "linear_frame_selector")
 
     def test_strategy_label_is_used_for_metric_identity(self) -> None:
         bundle = TokenBundle(
@@ -585,6 +697,8 @@ class PipelineTest(unittest.TestCase):
             summary = write_publication_artifacts(root)
             chart_exists = (root / "summary_chart.svg").exists()
             examples_exists = (root / "listening_examples.md").exists()
+            listening_study_exists = (root / "listening_study.csv").exists()
+            serving_report_exists = (root / "serving_stack_report.json").exists()
             examples_text = (root / "listening_examples.md").read_text(
                 encoding="utf-8",
             )
@@ -592,7 +706,48 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(summary["best_energy_strategy"], "energy_tuned")
         self.assertTrue(chart_exists)
         self.assertTrue(examples_exists)
+        self.assertTrue(listening_study_exists)
+        self.assertTrue(serving_report_exists)
         self.assertIn("energy_tuned", examples_text)
+
+    def test_listening_study_artifacts_write_rating_sheet(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "asr_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_text,hypothesis_text,wer,cer\n"
+                "clip_a,baseline,/tmp/clip_a__baseline.wav,hello,hello,0,0\n"
+                "clip_a,uniform,/tmp/clip_a__uniform.wav,hello,helo,0.5,0.25\n",
+                encoding="utf-8",
+            )
+            (root / "speaker_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_strategy,speaker_similarity,model_source\n"
+                "clip_a,baseline,/tmp/clip_a__baseline.wav,baseline,1,test\n"
+                "clip_a,uniform,/tmp/clip_a__uniform.wav,baseline,0.5,test\n",
+                encoding="utf-8",
+            )
+
+            summary = write_listening_study_artifacts(root)
+            rating_sheet = (root / "listening_study.csv").read_text(encoding="utf-8")
+
+        self.assertEqual(summary["item_count"], 1)
+        self.assertIn("mos_1_5", rating_sheet)
+        self.assertIn("atl_0001", rating_sheet)
+
+    def test_serving_stack_report_estimates_transformer_savings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "metrics.csv").write_text(
+                "clip_id,strategy,original_tokens,compressed_tokens,"
+                "token_reduction_ratio,estimated_kv_cache_savings_mb\n"
+                "clip_a,baseline,100,100,0,0\n"
+                "clip_a,uniform,100,50,0.5,6\n",
+                encoding="utf-8",
+            )
+
+            report = write_serving_stack_report(root)
+
+        self.assertEqual(report["strategy_summary"]["uniform"]["prefill_attention_work_ratio"], 0.25)
+        self.assertEqual(report["strategy_summary"]["uniform"]["decode_kv_read_reduction_ratio"], 0.5)
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

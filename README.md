@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Benchmark: Modal L4](https://img.shields.io/badge/benchmark-Modal%20L4-7c3aed)](REPORT.md)
 [![Tokenizer: EnCodec](https://img.shields.io/badge/tokenizer-EnCodec-orange)](https://github.com/facebookresearch/encodec)
-[![Dataset: LibriSpeech](https://img.shields.io/badge/dataset-LibriSpeech-blue)](https://www.openslr.org/12/)
+[![Datasets: LibriSpeech+](https://img.shields.io/badge/datasets-LibriSpeech%20%2B%20HF%20speech-blue)](https://www.openslr.org/12/)
 [![Run: 100 clips](https://img.shields.io/badge/run-100%20clips%20%7C%20800%20samples-111827)](experiments/results/encodec_librispeech_asr_modal_2026-06-15.json)
 
 **Audio-token compression benchmarks for speech and voice-model infrastructure.**
@@ -14,6 +14,13 @@ AudioTokenLab measures how much discrete audio-token streams can be compressed b
 > Can we reduce audio-token memory and latency without destroying intelligibility or speaker identity?
 
 The current benchmark uses EnCodec 24 kHz tokens, reconstructs compressed audio, and evaluates the result with ASR WER/CER, SpeechBrain speaker similarity, reconstruction metrics, and KV-cache estimates.
+
+The repo now also includes the next-stage research hooks:
+
+- broader multi-corpus speech manifests beyond LibriSpeech
+- VAD-aware and linear learned-selector token retention strategies
+- subjective listening-study sheets for human ratings
+- serving-stack reports for transformer prefill/KV-cache tradeoffs, with an optional PyTorch microbenchmark
 
 ## Current Result
 
@@ -53,8 +60,13 @@ Tracked, repo-visible artifacts:
 - [100-clip summary chart](experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg)
 - [listening examples](experiments/results/encodec_librispeech_asr_100clip_listening_examples.md)
 - [committed example WAVs](experiments/results/listening_examples/)
+- [broader-speech smoke publication summary](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_publication_summary.json)
+- [broader-speech smoke serving report](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_serving_stack_report.md)
+- [broader-speech smoke listening-study sheet](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_listening_study.csv)
 
 Generated full run artifacts are intentionally ignored from git and written under `modal-runs/`.
+
+The broader-speech smoke artifact is intentionally small: 3 clips across LibriSpeech, MInDS-14, and FLEURS; 7 strategies; 21 reconstructed/evaluated samples. Its purpose is to verify the new pipeline and artifact generation, not to replace the 100-clip LibriSpeech result.
 
 ## What It Measures
 
@@ -92,6 +104,8 @@ The main neural-codec benchmark uses EnCodec. The repo also includes dependency-
 | `acoustic_salience` | Keep the frame with the strongest local RVQ-token transition inside each window, then repeat-fill the decode timeline. |
 | `energy_salience` | Combine token-transition score with frame-energy/onset cues. |
 | `energy_tuned_e4_t1_o2` | Tuned energy-salience variant from the 100-clip run. |
+| `vad_salience` | Uses frame-energy speech activity, short-run filtering, and hangover to keep likely speech/onset frames. |
+| `linear_selector_v1` | Linear frame selector hook over energy, onset, transition, and speech-activity features. Weights can be swapped for trained weights. |
 | `patch` | Average codec IDs across frame windows. Kept as a failure baseline because arithmetic over discrete codec IDs is not meaningful. |
 
 ## Installation
@@ -109,6 +123,8 @@ python3 -m pip install -e '.[encodec]'
 python3 -m pip install -e '.[modal]'
 python3 -m pip install -e '.[asr]'
 python3 -m pip install -e '.[speaker]'
+python3 -m pip install -e '.[datasets]'
+python3 -m pip install -e '.[serving]'
 ```
 
 For the full Modal benchmark, you need Modal configured:
@@ -188,6 +204,39 @@ modal-runs/encodec_librispeech_asr/
     *.wav
 ```
 
+Broader speech benchmark:
+
+```bash
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended
+```
+
+This builds one manifest from LibriSpeech plus public Hugging Face speech corpora such as MInDS-14 and FLEURS, then runs the same EnCodec + ASR + speaker pipeline. The corpus builder is source-configurable, so you can point it at TED-LIUM, Common Voice, VoxPopuli, or internal manifests when access is available. Upstream dataset access and licenses remain governed by each provider.
+
+Optional serving microbenchmark:
+
+```bash
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended --serving-microbench
+```
+
+The serving report consumes `metrics.csv` and writes:
+
+```text
+serving_stack_report.json
+serving_stack_report.md
+```
+
+It estimates transformer prefill attention work, decode KV-read reduction, and KV-cache savings. With `--serving-microbench`, it also runs a reference PyTorch transformer layer on representative token lengths.
+
+Subjective listening artifacts are generated with publication artifacts:
+
+```text
+listening_study.csv
+listening_study.md
+listening_study.json
+```
+
+The CSV is an anonymized rating sheet for MOS, intelligibility, speaker match, and artifact notes.
+
 ## Repository Layout
 
 ```text
@@ -197,6 +246,9 @@ src/audiotokenlab/
   asr_eval.py             WER/CER evaluation and bootstrap CIs
   speaker_eval.py         SpeechBrain speaker-similarity evaluation
   publication.py          chart and listening-example artifacts
+  listening_study.py      subjective rating sheets
+  serving.py              transformer-serving estimates and optional torch microbenchmarks
+  corpora.py              broader speech dataset manifest builders
   reporting.py            CSV/JSON/HTML reporting
   tokenizers/             dummy, mu-law, and EnCodec tokenizer adapters
 
@@ -235,9 +287,10 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 
 ## Current Limitations
 
-- The main benchmark uses LibriSpeech `dev-clean`; broader datasets are still needed.
+- The tracked headline result is still LibriSpeech `dev-clean`; the broader multi-corpus run is currently a smoke validation, not a full public benchmark.
 - ASR uses `faster-whisper tiny.en`, which is a practical evaluator but not an oracle for speech quality.
 - Speaker similarity uses one pretrained embedding model.
+- `linear_selector_v1` is a selector hook with default hand-set weights; trained weights should be reported with their training data and objective.
 - The current salience policies are heuristic, not learned token selectors.
 - KV-cache savings are architecture estimates, not measurements from a deployed audio transformer.
 
