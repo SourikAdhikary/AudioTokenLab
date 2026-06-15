@@ -123,6 +123,137 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
     path.write_text(document, encoding="utf-8")
 
 
+def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
+    metrics_rows = _read_csv_dicts(output_dir / "metrics.csv")
+    manifest = _read_json(output_dir / "manifest.json")
+    run_id = str(manifest.get("run_id", output_dir.name))
+    codec_summary = manifest.get("summary", {})
+    codec_by_strategy = manifest.get("strategy_summary", {})
+    asr_by_strategy = _summarize_asr_by_strategy(asr_rows)
+    strategy_rows = "\n".join(
+        _html_joint_strategy_row(strategy, codec_by_strategy.get(strategy, {}), asr)
+        for strategy, asr in asr_by_strategy.items()
+    )
+    tradeoff_rows = "\n".join(
+        _html_tradeoff_row(strategy, codec_by_strategy.get(strategy, {}), asr)
+        for strategy, asr in asr_by_strategy.items()
+    )
+    failure_rows = "\n".join(
+        _html_failure_row(row)
+        for row in sorted(asr_rows, key=lambda item: float(item["wer"]), reverse=True)[:10]
+    )
+    metric_rows = "\n".join(_html_metric_dict_row(row) for row in metrics_rows)
+    document = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AudioTokenLab ASR Report - {html.escape(run_id)}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #172026; }}
+    main {{ max-width: 1280px; margin: 0 auto; }}
+    h1 {{ font-size: 28px; margin-bottom: 8px; }}
+    h2 {{ margin-top: 32px; }}
+    p {{ color: #3f4c57; line-height: 1.45; }}
+    .summary {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 24px 0; }}
+    .metric {{ border: 1px solid #d7dee4; border-radius: 8px; padding: 12px; background: #f8fafb; }}
+    .label {{ font-size: 12px; color: #53606b; text-transform: uppercase; letter-spacing: 0.04em; }}
+    .value {{ font-size: 22px; font-weight: 650; margin-top: 4px; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }}
+    th, td {{ border-bottom: 1px solid #d7dee4; padding: 8px; text-align: right; vertical-align: top; }}
+    th:first-child, td:first-child, .text {{ text-align: left; }}
+    th {{ background: #eef3f6; }}
+    audio {{ width: 180px; max-width: 100%; }}
+    .note {{ border-left: 4px solid #8091a2; padding-left: 12px; }}
+  </style>
+</head>
+<body>
+<main>
+  <h1>AudioTokenLab ASR Benchmark</h1>
+  <p class="note">Run <strong>{html.escape(run_id)}</strong>. This dashboard combines codec metrics with downstream ASR WER/CER. Lower WER at the same token budget is the main signal.</p>
+  <section class="summary">
+    {_summary_card("Codec Rows", codec_summary.get("row_count", len(metrics_rows)))}
+    {_summary_card("ASR Rows", len(asr_rows))}
+    {_summary_card("Clips", codec_summary.get("clip_count", "-"))}
+    {_summary_card("Mean Token Reduction", _format_percent(codec_summary.get("mean_token_reduction_ratio")))}
+    {_summary_card("Mean KV Savings", _format_mb(codec_summary.get("mean_kv_cache_savings_mb")))}
+    {_summary_card("Mean ASR WER", _format_percent(_mean_float(asr_rows, "wer")))}
+  </section>
+  <h2>Strategy Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Strategy</th>
+        <th>Rows</th>
+        <th>Token Reduction</th>
+        <th>KV Savings MB</th>
+        <th>SNR dB</th>
+        <th>WER</th>
+        <th>CER</th>
+      </tr>
+    </thead>
+    <tbody>
+      {strategy_rows}
+    </tbody>
+  </table>
+  <h2>Token Budget vs ASR</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Strategy</th>
+        <th>Token Reduction</th>
+        <th>WER</th>
+        <th>CER</th>
+        <th>KV Savings MB</th>
+        <th>RTF</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tradeoff_rows}
+    </tbody>
+  </table>
+  <h2>Worst ASR Cases</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Clip</th>
+        <th>Strategy</th>
+        <th>WER</th>
+        <th>CER</th>
+        <th class="text">Reference</th>
+        <th class="text">Hypothesis</th>
+        <th>Sample</th>
+      </tr>
+    </thead>
+    <tbody>
+      {failure_rows}
+    </tbody>
+  </table>
+  <h2>Codec Rows</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Clip</th>
+        <th>Strategy</th>
+        <th>Original Tokens</th>
+        <th>Compressed Tokens</th>
+        <th>Reduction</th>
+        <th>KV Savings MB</th>
+        <th>SNR dB</th>
+        <th>RTF</th>
+      </tr>
+    </thead>
+    <tbody>
+      {metric_rows}
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
+"""
+    (output_dir / "dashboard.html").write_text(document, encoding="utf-8")
+
+
 def summarize(rows: list[MetricRow]) -> dict:
     if not rows:
         return {
@@ -216,3 +347,121 @@ def _html_row(row: MetricRow) -> str:
         f"<td>{row.real_time_factor:.4f}</td>"
         "</tr>"
     )
+
+
+def _read_csv_dicts(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _summarize_asr_by_strategy(rows: list[dict]) -> dict[str, dict]:
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["strategy"]), []).append(row)
+
+    summary: dict[str, dict] = {}
+    for strategy in sorted(grouped):
+        strategy_rows = grouped[strategy]
+        summary[strategy] = {
+            "row_count": len(strategy_rows),
+            "mean_wer": _mean_float(strategy_rows, "wer"),
+            "mean_cer": _mean_float(strategy_rows, "cer"),
+        }
+    return summary
+
+
+def _html_joint_strategy_row(strategy: str, codec: dict, asr: dict) -> str:
+    return (
+        "<tr>"
+        f"<td>{html.escape(strategy)}</td>"
+        f"<td>{asr.get('row_count', 0)}</td>"
+        f"<td>{_format_percent(codec.get('mean_token_reduction_ratio'))}</td>"
+        f"<td>{_format_number(codec.get('mean_kv_cache_savings_mb'))}</td>"
+        f"<td>{_format_number(codec.get('mean_reconstruction_snr_db'))}</td>"
+        f"<td>{_format_percent(asr.get('mean_wer'))}</td>"
+        f"<td>{_format_percent(asr.get('mean_cer'))}</td>"
+        "</tr>"
+    )
+
+
+def _html_tradeoff_row(strategy: str, codec: dict, asr: dict) -> str:
+    return (
+        "<tr>"
+        f"<td>{html.escape(strategy)}</td>"
+        f"<td>{_format_percent(codec.get('mean_token_reduction_ratio'))}</td>"
+        f"<td>{_format_percent(asr.get('mean_wer'))}</td>"
+        f"<td>{_format_percent(asr.get('mean_cer'))}</td>"
+        f"<td>{_format_number(codec.get('mean_kv_cache_savings_mb'))}</td>"
+        f"<td>{_format_number(codec.get('mean_real_time_factor'), digits=4)}</td>"
+        "</tr>"
+    )
+
+
+def _html_failure_row(row: dict) -> str:
+    sample_name = Path(str(row.get("sample_path", ""))).name
+    sample_href = f"samples/{sample_name}" if sample_name else ""
+    if sample_href:
+        sample_cell = (
+            f'<audio controls src="{html.escape(sample_href)}"></audio>'
+        )
+    else:
+        sample_cell = ""
+    return (
+        "<tr>"
+        f"<td>{html.escape(str(row.get('clip_id', '')))}</td>"
+        f"<td>{html.escape(str(row.get('strategy', '')))}</td>"
+        f"<td>{_format_percent(row.get('wer'))}</td>"
+        f"<td>{_format_percent(row.get('cer'))}</td>"
+        f"<td class=\"text\">{html.escape(str(row.get('reference_text', '')))}</td>"
+        f"<td class=\"text\">{html.escape(str(row.get('hypothesis_text', '')))}</td>"
+        f"<td>{sample_cell}</td>"
+        "</tr>"
+    )
+
+
+def _html_metric_dict_row(row: dict) -> str:
+    return (
+        "<tr>"
+        f"<td>{html.escape(str(row.get('clip_id', '')))}</td>"
+        f"<td>{html.escape(str(row.get('strategy', '')))}</td>"
+        f"<td>{html.escape(str(row.get('original_tokens', '')))}</td>"
+        f"<td>{html.escape(str(row.get('compressed_tokens', '')))}</td>"
+        f"<td>{_format_percent(row.get('token_reduction_ratio'))}</td>"
+        f"<td>{_format_number(row.get('estimated_kv_cache_savings_mb'))}</td>"
+        f"<td>{_format_number(row.get('reconstruction_snr_db'))}</td>"
+        f"<td>{_format_number(row.get('real_time_factor'), digits=4)}</td>"
+        "</tr>"
+    )
+
+
+def _mean_float(rows: list[dict], key: str) -> float:
+    values = [_to_float(row.get(key)) for row in rows if row.get(key) is not None]
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def _format_percent(value: object) -> str:
+    return f"{_to_float(value):.2%}"
+
+
+def _format_mb(value: object) -> str:
+    return f"{_to_float(value):.2f} MB"
+
+
+def _format_number(value: object, digits: int = 2) -> str:
+    return f"{_to_float(value):.{digits}f}"
+
+
+def _to_float(value: object) -> float:
+    if value is None or value == "":
+        return 0.0
+    return float(value)

@@ -83,6 +83,7 @@ class EncodecTokenizer(AudioTokenizer):
                 "model_name": self.model_name,
                 "bandwidth": self.bandwidth,
                 "scale": scale_value,
+                "frame_energies": _frame_energies(clip.samples, frame_count),
             },
         )
 
@@ -146,3 +147,21 @@ def _expanded_decode_tokens(bundle: TokenBundle) -> tuple[int, ...]:
         for _ in range(int(repeat_count)):
             expanded.extend(frame)
     return tuple(expanded)
+
+
+def _frame_energies(samples: tuple[float, ...], frame_count: int) -> list[float]:
+    if frame_count <= 0 or not samples:
+        return []
+
+    energies: list[float] = []
+    sample_count = len(samples)
+    for frame_index in range(frame_count):
+        start = round(frame_index * sample_count / frame_count)
+        end = round((frame_index + 1) * sample_count / frame_count)
+        window = samples[start:end]
+        if not window:
+            energies.append(0.0)
+            continue
+        energy = sum(sample * sample for sample in window) / len(window)
+        energies.append(float(energy))
+    return energies

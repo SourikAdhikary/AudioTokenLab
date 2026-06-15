@@ -112,6 +112,7 @@ def run_speech_asr_profile() -> dict:
                     {"name": "baseline"},
                     {"name": "uniform", "factor": 2},
                     {"name": "acoustic_salience", "factor": 2},
+                    {"name": "energy_salience", "factor": 2},
                     {"name": "patch", "patch_size": 4},
                 ],
                 "kv_cache": {
@@ -145,8 +146,8 @@ def run_speech_asr_profile() -> dict:
     }
 
 
-@app.function(gpu="L4", timeout=35 * 60, memory=8192)
-def run_librispeech_asr_profile(max_clips: int = 4) -> dict:
+@app.function(gpu="L4", timeout=60 * 60, memory=8192)
+def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
     from audiotokenlab.asr_eval import (
         transcribe_samples_with_faster_whisper,
         write_asr_artifacts,
@@ -185,6 +186,7 @@ def run_librispeech_asr_profile(max_clips: int = 4) -> dict:
                     {"name": "baseline"},
                     {"name": "uniform", "factor": 2},
                     {"name": "acoustic_salience", "factor": 2},
+                    {"name": "energy_salience", "factor": 2},
                     {"name": "patch", "patch_size": 4},
                 ],
                 "kv_cache": {
@@ -226,7 +228,7 @@ def main(
     extract: bool = True,
     speech_asr: bool = False,
     librispeech_asr: bool = False,
-    max_clips: int = 4,
+    max_clips: int = 24,
 ) -> None:
     if librispeech_asr:
         result = run_librispeech_asr_profile.remote(max_clips)

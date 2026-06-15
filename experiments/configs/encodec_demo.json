@@ -20,6 +20,7 @@
     { "name": "baseline" },
     { "name": "uniform", "factor": 2 },
     { "name": "acoustic_salience", "factor": 2 },
+    { "name": "energy_salience", "factor": 2 },
     { "name": "patch", "patch_size": 4 }
   ],
   "kv_cache": {

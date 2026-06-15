@@ -42,15 +42,17 @@ def prepare_librispeech_slice(
                 text = extracted.read().decode("utf-8")
                 transcripts.update(parse_librispeech_transcripts(text))
 
-        for member in members:
-            if not member.isfile() or not member.name.endswith(".flac"):
-                continue
-            clip_id = Path(member.name).stem
-            if clip_id not in transcripts:
-                continue
-            selected_flacs.append(member)
-            if len(selected_flacs) >= max_clips:
-                break
+        flac_members = {
+            member.name: member
+            for member in members
+            if member.isfile() and member.name.endswith(".flac")
+        }
+        selected_names = select_librispeech_flacs(
+            sorted(flac_members),
+            transcripts,
+            max_clips=max_clips,
+        )
+        selected_flacs = [flac_members[name] for name in selected_names]
 
         manifest_clips = []
         for member in selected_flacs:
@@ -86,6 +88,8 @@ def prepare_librispeech_slice(
                     "source": "LibriSpeech dev-clean",
                     "license": "CC BY 4.0",
                     "archive_url": archive_url,
+                    "speaker_id": _speaker_id(member.name),
+                    "chapter_id": _chapter_id(member.name),
                 }
             )
 
@@ -111,3 +115,49 @@ def parse_librispeech_transcripts(text: str) -> dict[str, str]:
             transcripts[clip_id] = transcript
     return transcripts
 
+
+def select_librispeech_flacs(
+    member_names: list[str],
+    transcripts: dict[str, str],
+    max_clips: int,
+) -> list[str]:
+    groups: dict[tuple[str, str], list[str]] = {}
+    for name in member_names:
+        if not name.endswith(".flac"):
+            continue
+        clip_id = Path(name).stem
+        if clip_id not in transcripts:
+            continue
+        key = (_speaker_id(name), _chapter_id(name))
+        groups.setdefault(key, []).append(name)
+
+    selected: list[str] = []
+    grouped_names = [groups[key] for key in sorted(groups)]
+    depth = 0
+    while len(selected) < max_clips:
+        added = False
+        for names in grouped_names:
+            if depth >= len(names):
+                continue
+            selected.append(names[depth])
+            added = True
+            if len(selected) >= max_clips:
+                break
+        if not added:
+            break
+        depth += 1
+    return selected
+
+
+def _speaker_id(member_name: str) -> str:
+    parts = Path(member_name).parts
+    if len(parts) >= 4:
+        return parts[-3]
+    return ""
+
+
+def _chapter_id(member_name: str) -> str:
+    parts = Path(member_name).parts
+    if len(parts) >= 3:
+        return parts[-2]
+    return ""

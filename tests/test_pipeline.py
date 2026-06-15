@@ -8,18 +8,21 @@ import unittest
 from pathlib import Path
 
 from audiotokenlab.audio_io import write_wav
-from audiotokenlab.asr_eval import summarize_asr
+from audiotokenlab.asr_eval import summarize_asr, write_asr_artifacts
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
-from audiotokenlab.librispeech import parse_librispeech_transcripts
+from audiotokenlab.librispeech import (
+    parse_librispeech_transcripts,
+    select_librispeech_flacs,
+)
 from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
 from audiotokenlab.tokenizers import build_tokenizer
-from audiotokenlab.tokenizers.encodec_backend import _expanded_decode_tokens
+from audiotokenlab.tokenizers.encodec_backend import _expanded_decode_tokens, _frame_energies
 
 
 class PipelineTest(unittest.TestCase):
@@ -93,6 +96,34 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(parsed["1272-128104-0000"], "A CHAPTER TITLE")
         self.assertEqual(parsed["1272-128104-0001"], "THE QUICK BROWN FOX")
+
+    def test_librispeech_selection_spreads_speakers_and_chapters(self) -> None:
+        names = [
+            "LibriSpeech/dev-clean/111/100/111-100-0000.flac",
+            "LibriSpeech/dev-clean/111/100/111-100-0001.flac",
+            "LibriSpeech/dev-clean/222/200/222-200-0000.flac",
+            "LibriSpeech/dev-clean/222/200/222-200-0001.flac",
+            "LibriSpeech/dev-clean/333/300/333-300-0000.flac",
+        ]
+        transcripts = {
+            "111-100-0000": "A",
+            "111-100-0001": "B",
+            "222-200-0000": "C",
+            "222-200-0001": "D",
+            "333-300-0000": "E",
+        }
+
+        selected = select_librispeech_flacs(names, transcripts, max_clips=4)
+
+        self.assertEqual(
+            selected,
+            [
+                "LibriSpeech/dev-clean/111/100/111-100-0000.flac",
+                "LibriSpeech/dev-clean/222/200/222-200-0000.flac",
+                "LibriSpeech/dev-clean/333/300/333-300-0000.flac",
+                "LibriSpeech/dev-clean/111/100/111-100-0001.flac",
+            ],
+        )
 
     def test_compression_reduces_tokens(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
@@ -217,6 +248,42 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(_expanded_decode_tokens(bundle), (7, 70, 7, 70, 8, 80))
 
+    def test_energy_salience_uses_frame_energy_metadata(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 2, 11, 3, 12, 4, 13, 5, 14, 6, 15),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.12,
+            metadata={
+                "token_layout": "frame_major",
+                "frame_count": 6,
+                "frame_energies": [0.01, 0.9, 0.02, 0.01, 0.03, 0.8],
+            },
+        )
+        compressed = compress_tokens(
+            bundle,
+            {
+                "name": "energy_salience",
+                "factor": 3,
+                "energy_weight": 10.0,
+                "transition_weight": 0.0,
+                "onset_weight": 0.0,
+            },
+        )
+
+        self.assertEqual(compressed.tokens, (2, 11, 6, 15))
+        self.assertEqual(compressed.metadata["decode_repeat_counts"], [3, 3])
+
+    def test_frame_energies_match_requested_frame_count(self) -> None:
+        energies = _frame_energies((0.0, 1.0, 0.0, 2.0), frame_count=2)
+
+        self.assertEqual(len(energies), 2)
+        self.assertAlmostEqual(energies[0], 0.5)
+        self.assertAlmostEqual(energies[1], 2.0)
+
     def test_encodec_backend_reports_missing_optional_dependency(self) -> None:
         if importlib.util.find_spec("encodec") is not None:
             self.skipTest("encodec is installed in this environment")
@@ -276,6 +343,77 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(summary["row_count"], 2)
         self.assertEqual(summary["strategy_summary"]["baseline"]["mean_wer"], 0.0)
         self.assertEqual(summary["strategy_summary"]["patch"]["mean_cer"], 0.25)
+
+    def test_asr_artifacts_refresh_dashboard(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "asr_test",
+                        "summary": {
+                            "row_count": 2,
+                            "clip_count": 1,
+                            "mean_token_reduction_ratio": 0.25,
+                            "mean_kv_cache_savings_mb": 3.0,
+                        },
+                        "strategy_summary": {
+                            "baseline": {
+                                "mean_token_reduction_ratio": 0.0,
+                                "mean_kv_cache_savings_mb": 0.0,
+                                "mean_reconstruction_snr_db": 9.0,
+                                "mean_real_time_factor": 0.01,
+                            },
+                            "uniform": {
+                                "mean_token_reduction_ratio": 0.5,
+                                "mean_kv_cache_savings_mb": 6.0,
+                                "mean_reconstruction_snr_db": -1.0,
+                                "mean_real_time_factor": 0.02,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "metrics.csv").write_text(
+                "clip_id,strategy,original_tokens,compressed_tokens,"
+                "token_reduction_ratio,estimated_kv_cache_savings_mb,"
+                "reconstruction_snr_db,real_time_factor\n"
+                "clip_a,baseline,10,10,0,0,9,0.01\n"
+                "clip_a,uniform,10,5,0.5,6,-1,0.02\n",
+                encoding="utf-8",
+            )
+
+            write_asr_artifacts(
+                root,
+                [
+                    {
+                        "clip_id": "clip_a",
+                        "strategy": "baseline",
+                        "sample_path": "/tmp/clip_a__baseline.wav",
+                        "reference_text": "hello audio",
+                        "hypothesis_text": "hello audio",
+                        "wer": 0.0,
+                        "cer": 0.0,
+                    },
+                    {
+                        "clip_id": "clip_a",
+                        "strategy": "uniform",
+                        "sample_path": "/tmp/clip_a__uniform.wav",
+                        "reference_text": "hello audio",
+                        "hypothesis_text": "hello",
+                        "wer": 0.5,
+                        "cer": 0.45,
+                    },
+                ],
+            )
+
+            dashboard = (root / "dashboard.html").read_text(encoding="utf-8")
+
+        self.assertIn("AudioTokenLab ASR Benchmark", dashboard)
+        self.assertIn("Token Budget vs ASR", dashboard)
+        self.assertIn("Worst ASR Cases", dashboard)
+        self.assertIn("50.00%", dashboard)
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

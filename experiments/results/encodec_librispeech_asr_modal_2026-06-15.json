@@ -3,7 +3,7 @@
   "run_date": "2026-06-15",
   "execution": "modal",
   "modal_gpu": "L4",
-  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-mLrgEz7X0R1qR9vbkJFV1E",
+  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-47G8kWlbXHVg4RMx48rLFC",
   "artifact_root": "modal-runs/encodec_librispeech_asr",
   "dataset": {
     "name": "LibriSpeech dev-clean",
@@ -11,87 +11,103 @@
     "url": "https://www.openslr.org/12/",
     "archive_url": "https://www.openslr.org/resources/12/dev-clean.tar.gz",
     "license": "CC BY 4.0",
-    "clip_count": 4,
+    "clip_count": 24,
+    "speaker_count": 10,
+    "chapter_count": 24,
     "sample_rate": 24000
   },
-  "codec_row_count": 16,
-  "asr_row_count": 16,
+  "codec_row_count": 120,
+  "asr_row_count": 120,
   "tokenizer": "encodec_24khz",
   "asr_model": "faster-whisper tiny.en",
   "asr_device": "cpu",
   "asr_compute_type": "int8",
   "codec_summary": {
-    "mean_token_reduction_ratio": 0.436764332185522,
-    "mean_kv_cache_savings_mb": 112.6875,
-    "mean_reconstruction_mse": 0.006133995364686446,
-    "mean_reconstruction_snr_db": 0.4658413003969016
+    "mean_token_reduction_ratio": 0.44961357429159776,
+    "mean_kv_cache_savings_mb": 214.55625,
+    "mean_reconstruction_mse": 0.005687601814713831,
+    "mean_reconstruction_snr_db": -0.11084853156092593
   },
   "codec_strategy_summary": {
     "baseline": {
-      "row_count": 4,
+      "row_count": 24,
       "mean_token_reduction_ratio": 0.0,
       "mean_kv_cache_savings_mb": 0.0,
-      "mean_reconstruction_mse": 0.0005217209343507262,
-      "mean_reconstruction_snr_db": 8.838323344916933,
-      "mean_real_time_factor": 0.008802339297123696
+      "mean_reconstruction_mse": 0.0007596073708674575,
+      "mean_reconstruction_snr_db": 7.437472220580143,
+      "mean_real_time_factor": 0.006687989423647348
     },
     "uniform": {
-      "row_count": 4,
-      "mean_token_reduction_ratio": 0.4993261259690345,
-      "mean_kv_cache_savings_mb": 128.8125,
-      "mean_reconstruction_mse": 0.005428668404965258,
-      "mean_reconstruction_snr_db": -1.301822437317453,
-      "mean_real_time_factor": 0.007427757116644359
+      "row_count": 24,
+      "mean_token_reduction_ratio": 0.49960150873329606,
+      "mean_kv_cache_savings_mb": 238.40625,
+      "mean_reconstruction_mse": 0.005515623610185154,
+      "mean_reconstruction_snr_db": -1.2735249953768695,
+      "mean_real_time_factor": 0.00585708551513929
     },
     "acoustic_salience": {
-      "row_count": 4,
-      "mean_token_reduction_ratio": 0.4993261259690345,
-      "mean_kv_cache_savings_mb": 128.8125,
-      "mean_reconstruction_mse": 0.0040411252935657754,
-      "mean_reconstruction_snr_db": -0.04477319470707908,
-      "mean_real_time_factor": 0.004645932113803101
+      "row_count": 24,
+      "mean_token_reduction_ratio": 0.49960150873329606,
+      "mean_kv_cache_savings_mb": 238.40625,
+      "mean_reconstruction_mse": 0.003961952392416789,
+      "mean_reconstruction_snr_db": 0.12446215061904835,
+      "mean_real_time_factor": 0.0047038489141142765
+    },
+    "energy_salience": {
+      "row_count": 24,
+      "mean_token_reduction_ratio": 0.49960150873329606,
+      "mean_kv_cache_savings_mb": 238.40625,
+      "mean_reconstruction_mse": 0.00408627654597172,
+      "mean_reconstruction_snr_db": 0.0040251956732687555,
+      "mean_real_time_factor": 0.004723258091150839
     },
     "patch": {
-      "row_count": 4,
-      "mean_token_reduction_ratio": 0.7484050768040191,
-      "mean_kv_cache_savings_mb": 193.125,
-      "mean_reconstruction_mse": 0.014544466825864022,
-      "mean_reconstruction_snr_db": -5.628362511304795,
-      "mean_real_time_factor": 0.008369541973841198
+      "row_count": 24,
+      "mean_token_reduction_ratio": 0.7492633452581002,
+      "mean_kv_cache_savings_mb": 357.5625,
+      "mean_reconstruction_mse": 0.01411454915412802,
+      "mean_reconstruction_snr_db": -6.84667722930022,
+      "mean_real_time_factor": 0.005456730085963638
     }
   },
   "asr_summary": {
-    "mean_wer": 0.43779761904761905,
-    "mean_cer": 0.36900672994524064,
+    "mean_wer": 0.366335815157744,
+    "mean_cer": 0.2775218040477452,
     "strategy_summary": {
       "baseline": {
-        "row_count": 4,
-        "mean_wer": 0.034523809523809526,
-        "mean_cer": 0.02082186754723904
+        "row_count": 24,
+        "mean_wer": 0.11048833751386412,
+        "mean_cer": 0.045948950453259606
       },
       "uniform": {
-        "row_count": 4,
-        "mean_wer": 0.5226190476190476,
-        "mean_cer": 0.32718450554504264
+        "row_count": 24,
+        "mean_wer": 0.3657261060226818,
+        "mean_cer": 0.19517704630843213
       },
       "acoustic_salience": {
-        "row_count": 4,
-        "mean_wer": 0.19404761904761902,
-        "mean_cer": 0.12802054668868096
+        "row_count": 24,
+        "mean_wer": 0.17662271249784875,
+        "mean_cer": 0.08281573073493287
+      },
+      "energy_salience": {
+        "row_count": 24,
+        "mean_wer": 0.18044448385688958,
+        "mean_cer": 0.07913536928450449
       },
       "patch": {
-        "row_count": 4,
-        "mean_wer": 1.0,
-        "mean_cer": 1.0
+        "row_count": 24,
+        "mean_wer": 0.9983974358974358,
+        "mean_cer": 0.9845319234575967
       }
     }
   },
   "notes": [
-    "First real-speech Modal EnCodec+ASR benchmark.",
-    "Uses a tiny 4-clip slice from LibriSpeech dev-clean, so this is still a smoke benchmark, not a statistically meaningful final result.",
-    "Baseline EnCodec reconstruction preserved ASR well on this slice.",
+    "Scaled real-speech Modal EnCodec+ASR ablation.",
+    "Uses 24 clips from LibriSpeech dev-clean, spread across 10 speakers and 24 chapters.",
+    "Baseline EnCodec reconstruction preserved ASR reasonably but not perfectly on this larger slice.",
     "Uniform frame dropping reduced tokens by about 50% but substantially damaged ASR.",
-    "Acoustic salience kept the same about 50% token reduction as uniform dropping, but reduced mean WER from 52.26% to 19.40% on the same clips.",
+    "Acoustic salience kept the same about 50% token reduction as uniform dropping, but reduced mean WER from 36.57% to 17.66% on the same clips.",
+    "Energy salience kept the same about 50% token reduction and reached 18.04% mean WER with slightly lower CER than acoustic salience.",
     "Patch averaging over codec IDs collapsed ASR on this slice, confirming it is a failure baseline rather than a quality-preserving method."
   ]
 }

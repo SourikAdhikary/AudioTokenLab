@@ -29,6 +29,17 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
     if name == "acoustic_salience":
         factor = int(strategy.get("factor", 2))
         return _acoustic_salience(bundle, factor=factor, strategy=name)
+    if name == "energy_salience":
+        factor = int(strategy.get("factor", 2))
+        return _energy_salience(
+            bundle,
+            factor=factor,
+            energy_weight=float(strategy.get("energy_weight", 2.0)),
+            transition_weight=float(strategy.get("transition_weight", 1.0)),
+            onset_weight=float(strategy.get("onset_weight", 2.0)),
+            silence_threshold=float(strategy.get("silence_threshold", 0.05)),
+            strategy=name,
+        )
     raise ValueError(f"Unsupported compression strategy: {name}")
 
 
@@ -178,6 +189,63 @@ def _acoustic_salience(bundle: TokenBundle, factor: int, strategy: str) -> Token
     )
 
 
+def _energy_salience(
+    bundle: TokenBundle,
+    factor: int,
+    energy_weight: float,
+    transition_weight: float,
+    onset_weight: float,
+    silence_threshold: float,
+    strategy: str,
+) -> TokenBundle:
+    if factor <= 1:
+        return _replace(bundle, tokens=bundle.tokens, strategy=strategy)
+    if not _uses_frame_groups(bundle):
+        return _replace(bundle, tokens=tuple(bundle.tokens[::factor]), strategy=strategy)
+
+    frames = _frame_groups(bundle)
+    if not frames:
+        return _replace(bundle, tokens=(), strategy=strategy)
+
+    energies = _metadata_float_list(bundle.metadata.get("frame_energies"))
+    if len(energies) != len(frames):
+        return _acoustic_salience(bundle, factor=factor, strategy=strategy)
+
+    kept_frames: list[tuple[int, ...]] = []
+    repeat_counts: list[int] = []
+    normalized = _normalize_values(energies)
+    threshold = max(normalized) * silence_threshold if normalized else 0.0
+    for start in range(0, len(frames), factor):
+        window = frames[start : start + factor]
+        best_offset = _highest_energy_salience_offset(
+            frames,
+            normalized,
+            start,
+            len(window),
+            energy_weight=energy_weight,
+            transition_weight=transition_weight,
+            onset_weight=onset_weight,
+            silence_threshold=threshold,
+        )
+        kept_frames.append(window[best_offset])
+        repeat_counts.append(len(window))
+
+    return _replace(
+        bundle,
+        tokens=_flatten_frames(kept_frames),
+        strategy=strategy,
+        extra_metadata={
+            "decode_repeat_counts": repeat_counts,
+            "decode_frame_count": len(frames),
+            "salience_factor": factor,
+            "energy_weight": energy_weight,
+            "transition_weight": transition_weight,
+            "onset_weight": onset_weight,
+            "silence_threshold": silence_threshold,
+        },
+    )
+
+
 def _highest_salience_offset(
     frames: list[tuple[int, ...]],
     start: int,
@@ -189,6 +257,39 @@ def _highest_salience_offset(
         frame_index = start + offset
         previous_frame = frames[frame_index - 1] if frame_index > 0 else frames[frame_index]
         score = _frame_transition_score(previous_frame, frames[frame_index])
+        if score > best_score:
+            best_offset = offset
+            best_score = score
+    return best_offset
+
+
+def _highest_energy_salience_offset(
+    frames: list[tuple[int, ...]],
+    energies: list[float],
+    start: int,
+    window_size: int,
+    energy_weight: float,
+    transition_weight: float,
+    onset_weight: float,
+    silence_threshold: float,
+) -> int:
+    best_offset = 0
+    best_score = -1.0
+    for offset in range(window_size):
+        frame_index = start + offset
+        previous_frame = frames[frame_index - 1] if frame_index > 0 else frames[frame_index]
+        previous_energy = energies[frame_index - 1] if frame_index > 0 else energies[frame_index]
+        transition_score = _frame_transition_score(previous_frame, frames[frame_index])
+        onset_score = (
+            1.0
+            if previous_energy <= silence_threshold < energies[frame_index]
+            else 0.0
+        )
+        score = (
+            energy_weight * energies[frame_index]
+            + transition_weight * transition_score
+            + onset_weight * onset_score
+        )
         if score > best_score:
             best_offset = offset
             best_score = score
@@ -207,6 +308,21 @@ def _frame_transition_score(left: tuple[int, ...], right: tuple[int, ...]) -> fl
             changed += 1
             magnitude += delta
     return changed + (magnitude / max(1, count * 1024))
+
+
+def _metadata_float_list(value: object) -> list[float]:
+    if not isinstance(value, list):
+        return []
+    return [float(item) for item in value]
+
+
+def _normalize_values(values: list[float]) -> list[float]:
+    if not values:
+        return []
+    max_value = max(values)
+    if max_value <= 0.0:
+        return [0.0 for _ in values]
+    return [value / max_value for value in values]
 
 
 def _uses_frame_groups(bundle: TokenBundle) -> bool:

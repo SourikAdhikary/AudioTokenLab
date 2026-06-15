@@ -38,11 +38,14 @@ def transcribe_samples_with_faster_whisper(
 
 
 def write_asr_artifacts(output_dir: Path, rows: list[dict]) -> None:
+    from audiotokenlab.reporting import write_asr_dashboard
+
     write_asr_csv(output_dir / "asr_metrics.csv", rows)
     (output_dir / "asr_summary.json").write_text(
         json.dumps(summarize_asr(rows), indent=2, sort_keys=True),
         encoding="utf-8",
     )
+    write_asr_dashboard(output_dir, rows)
 
 
 def write_asr_csv(path: Path, rows: list[dict]) -> None:

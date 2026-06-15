@@ -83,6 +83,7 @@ Initial strategies:
 - **Silence-aware compression**: compress low-information regions more aggressively
 - **Patch compression**: group consecutive codec tokens into larger units
 - **Acoustic salience compression**: keep RVQ frames with the strongest local token transitions, then repeat-fill the decode timeline
+- **Energy salience compression**: combine RVQ-token transitions with frame-energy/onset cues before repeat-filling the decode timeline
 
 The project starts with simple, inspectable baselines before introducing learned compression. That keeps the benchmark honest and makes every improvement easier to interpret.
 
@@ -189,20 +190,23 @@ This synthesizes two tiny speech clips with `espeak-ng`, runs EnCodec compressio
 Run the real-speech LibriSpeech ASR benchmark:
 
 ```bash
-modal run modal_app.py --librispeech-asr --max-clips 4
+modal run modal_app.py --librispeech-asr --max-clips 24
 ```
 
 This downloads a tiny slice from LibriSpeech `dev-clean` on Modal, converts selected FLAC clips to 24 kHz WAV, runs EnCodec compression, and evaluates reconstructed samples with `faster-whisper`.
 
-First real-speech smoke result:
+Current real-speech Modal result:
 
 ```text
-Dataset: LibriSpeech dev-clean, 4 clips
-Baseline WER: 3.45%
-Uniform WER: 52.26% at ~49.93% token reduction
-Acoustic salience WER: 19.40% at ~49.93% token reduction
-Patch WER: 100.00% at ~74.84% token reduction
+Dataset: LibriSpeech dev-clean, 24 clips, 10 speakers, 24 chapters
+Baseline WER: 11.05%
+Uniform WER: 36.57% at ~49.96% token reduction
+Acoustic salience WER: 17.66% at ~49.96% token reduction
+Energy salience WER: 18.04% at ~49.96% token reduction
+Patch WER: 99.84% at ~74.93% token reduction
 ```
+
+See [REPORT.md](REPORT.md) for the current public benchmark report.
 
 Expected artifacts:
 
@@ -228,6 +232,9 @@ runs/demo/
 - [x] Speech reconstruction evaluation
 - [x] ASR-based WER/CER regression checks
 - [x] Acoustic salience sparse-frame baseline
+- [x] Energy/VAD-style salience baseline
+- [x] 24-clip LibriSpeech ASR ablation
+- [x] Public benchmark report
 - [ ] Speaker similarity checks
 - [x] HTML dashboard
 - [x] Modal GPU benchmark run
