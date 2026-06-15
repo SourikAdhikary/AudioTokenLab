@@ -8,7 +8,11 @@ import unittest
 from pathlib import Path
 
 from audiotokenlab.audio_io import write_wav
-from audiotokenlab.asr_eval import summarize_asr, write_asr_artifacts
+from audiotokenlab.asr_eval import (
+    bootstrap_mean_ci,
+    summarize_asr,
+    write_asr_artifacts,
+)
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
@@ -20,6 +24,7 @@ from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
+from audiotokenlab.speaker_eval import summarize_speaker, write_speaker_artifacts
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
 from audiotokenlab.tokenizers import build_tokenizer
 from audiotokenlab.tokenizers.encodec_backend import _expanded_decode_tokens, _frame_energies
@@ -343,6 +348,19 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(summary["row_count"], 2)
         self.assertEqual(summary["strategy_summary"]["baseline"]["mean_wer"], 0.0)
         self.assertEqual(summary["strategy_summary"]["patch"]["mean_cer"], 0.25)
+        self.assertEqual(
+            summary["strategy_summary"]["baseline"]["wer_ci95"],
+            {"low": 0.0, "high": 0.0},
+        )
+
+    def test_bootstrap_mean_ci_is_deterministic(self) -> None:
+        rows = [{"wer": 0.0}, {"wer": 0.5}, {"wer": 1.0}]
+
+        first = bootstrap_mean_ci(rows, "wer", iterations=100)
+        second = bootstrap_mean_ci(rows, "wer", iterations=100)
+
+        self.assertEqual(first, second)
+        self.assertLessEqual(first["low"], first["high"])
 
     def test_asr_artifacts_refresh_dashboard(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -413,7 +431,103 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("AudioTokenLab ASR Benchmark", dashboard)
         self.assertIn("Token Budget vs ASR", dashboard)
         self.assertIn("Worst ASR Cases", dashboard)
+        self.assertIn("WER 95% CI", dashboard)
         self.assertIn("50.00%", dashboard)
+
+    def test_speaker_summary_groups_strategies(self) -> None:
+        summary = summarize_speaker(
+            [
+                {"strategy": "baseline", "speaker_similarity": 1.0},
+                {"strategy": "uniform", "speaker_similarity": 0.5},
+            ]
+        )
+
+        self.assertEqual(summary["row_count"], 2)
+        self.assertEqual(
+            summary["strategy_summary"]["baseline"]["mean_speaker_similarity"],
+            1.0,
+        )
+        self.assertEqual(
+            summary["strategy_summary"]["uniform"]["mean_speaker_similarity"],
+            0.5,
+        )
+
+    def test_speaker_artifacts_refresh_dashboard(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": "speaker_test",
+                        "summary": {
+                            "row_count": 2,
+                            "clip_count": 1,
+                            "mean_token_reduction_ratio": 0.25,
+                            "mean_kv_cache_savings_mb": 3.0,
+                        },
+                        "strategy_summary": {
+                            "baseline": {
+                                "mean_token_reduction_ratio": 0.0,
+                                "mean_kv_cache_savings_mb": 0.0,
+                                "mean_reconstruction_snr_db": 9.0,
+                                "mean_real_time_factor": 0.01,
+                            },
+                            "uniform": {
+                                "mean_token_reduction_ratio": 0.5,
+                                "mean_kv_cache_savings_mb": 6.0,
+                                "mean_reconstruction_snr_db": -1.0,
+                                "mean_real_time_factor": 0.02,
+                            },
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "metrics.csv").write_text(
+                "clip_id,strategy,original_tokens,compressed_tokens,"
+                "token_reduction_ratio,estimated_kv_cache_savings_mb,"
+                "reconstruction_snr_db,real_time_factor\n"
+                "clip_a,baseline,10,10,0,0,9,0.01\n"
+                "clip_a,uniform,10,5,0.5,6,-1,0.02\n",
+                encoding="utf-8",
+            )
+            (root / "asr_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_text,hypothesis_text,wer,cer\n"
+                "clip_a,baseline,/tmp/clip_a__baseline.wav,hello,hello,0,0\n"
+                "clip_a,uniform,/tmp/clip_a__uniform.wav,hello,helo,0.5,0.25\n",
+                encoding="utf-8",
+            )
+
+            write_speaker_artifacts(
+                root,
+                [
+                    {
+                        "clip_id": "clip_a",
+                        "strategy": "baseline",
+                        "sample_path": "/tmp/clip_a__baseline.wav",
+                        "reference_strategy": "baseline",
+                        "speaker_similarity": 1.0,
+                        "model_source": "test",
+                    },
+                    {
+                        "clip_id": "clip_a",
+                        "strategy": "uniform",
+                        "sample_path": "/tmp/clip_a__uniform.wav",
+                        "reference_strategy": "baseline",
+                        "speaker_similarity": 0.75,
+                        "model_source": "test",
+                    },
+                ],
+            )
+
+            dashboard = (root / "dashboard.html").read_text(encoding="utf-8")
+            speaker_summary = json.loads(
+                (root / "speaker_summary.json").read_text(encoding="utf-8")
+            )
+
+        self.assertIn("Speaker Sim", dashboard)
+        self.assertIn("0.750", dashboard)
+        self.assertEqual(speaker_summary["row_count"], 2)
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

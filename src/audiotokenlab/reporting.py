@@ -125,17 +125,29 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
 
 def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
     metrics_rows = _read_csv_dicts(output_dir / "metrics.csv")
+    speaker_rows = _read_csv_dicts(output_dir / "speaker_metrics.csv")
     manifest = _read_json(output_dir / "manifest.json")
     run_id = str(manifest.get("run_id", output_dir.name))
     codec_summary = manifest.get("summary", {})
     codec_by_strategy = manifest.get("strategy_summary", {})
     asr_by_strategy = _summarize_asr_by_strategy(asr_rows)
+    speaker_by_strategy = _summarize_speaker_by_strategy(speaker_rows)
     strategy_rows = "\n".join(
-        _html_joint_strategy_row(strategy, codec_by_strategy.get(strategy, {}), asr)
+        _html_joint_strategy_row(
+            strategy,
+            codec_by_strategy.get(strategy, {}),
+            asr,
+            speaker_by_strategy.get(strategy, {}),
+        )
         for strategy, asr in asr_by_strategy.items()
     )
     tradeoff_rows = "\n".join(
-        _html_tradeoff_row(strategy, codec_by_strategy.get(strategy, {}), asr)
+        _html_tradeoff_row(
+            strategy,
+            codec_by_strategy.get(strategy, {}),
+            asr,
+            speaker_by_strategy.get(strategy, {}),
+        )
         for strategy, asr in asr_by_strategy.items()
     )
     failure_rows = "\n".join(
@@ -165,6 +177,7 @@ def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
     th {{ background: #eef3f6; }}
     audio {{ width: 180px; max-width: 100%; }}
     .note {{ border-left: 4px solid #8091a2; padding-left: 12px; }}
+    .nowrap {{ white-space: nowrap; }}
   </style>
 </head>
 <body>
@@ -178,6 +191,7 @@ def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
     {_summary_card("Mean Token Reduction", _format_percent(codec_summary.get("mean_token_reduction_ratio")))}
     {_summary_card("Mean KV Savings", _format_mb(codec_summary.get("mean_kv_cache_savings_mb")))}
     {_summary_card("Mean ASR WER", _format_percent(_mean_float(asr_rows, "wer")))}
+    {_summary_card("Mean Speaker Sim", _format_number(_mean_float(speaker_rows, "speaker_similarity"), digits=3))}
   </section>
   <h2>Strategy Summary</h2>
   <table>
@@ -189,7 +203,10 @@ def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
         <th>KV Savings MB</th>
         <th>SNR dB</th>
         <th>WER</th>
+        <th>WER 95% CI</th>
         <th>CER</th>
+        <th>CER 95% CI</th>
+        <th>Speaker Sim</th>
       </tr>
     </thead>
     <tbody>
@@ -203,7 +220,9 @@ def write_asr_dashboard(output_dir: Path, asr_rows: list[dict]) -> None:
         <th>Strategy</th>
         <th>Token Reduction</th>
         <th>WER</th>
+        <th>WER 95% CI</th>
         <th>CER</th>
+        <th>Speaker Sim</th>
         <th>KV Savings MB</th>
         <th>RTF</th>
       </tr>
@@ -373,12 +392,37 @@ def _summarize_asr_by_strategy(rows: list[dict]) -> dict[str, dict]:
         summary[strategy] = {
             "row_count": len(strategy_rows),
             "mean_wer": _mean_float(strategy_rows, "wer"),
+            "wer_ci95": _bootstrap_mean_ci(strategy_rows, "wer"),
             "mean_cer": _mean_float(strategy_rows, "cer"),
+            "cer_ci95": _bootstrap_mean_ci(strategy_rows, "cer"),
         }
     return summary
 
 
-def _html_joint_strategy_row(strategy: str, codec: dict, asr: dict) -> str:
+def _summarize_speaker_by_strategy(rows: list[dict]) -> dict[str, dict]:
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["strategy"]), []).append(row)
+
+    summary: dict[str, dict] = {}
+    for strategy in sorted(grouped):
+        strategy_rows = grouped[strategy]
+        summary[strategy] = {
+            "row_count": len(strategy_rows),
+            "mean_speaker_similarity": _mean_float(
+                strategy_rows,
+                "speaker_similarity",
+            ),
+        }
+    return summary
+
+
+def _html_joint_strategy_row(
+    strategy: str,
+    codec: dict,
+    asr: dict,
+    speaker: dict,
+) -> str:
     return (
         "<tr>"
         f"<td>{html.escape(strategy)}</td>"
@@ -387,18 +431,23 @@ def _html_joint_strategy_row(strategy: str, codec: dict, asr: dict) -> str:
         f"<td>{_format_number(codec.get('mean_kv_cache_savings_mb'))}</td>"
         f"<td>{_format_number(codec.get('mean_reconstruction_snr_db'))}</td>"
         f"<td>{_format_percent(asr.get('mean_wer'))}</td>"
+        f"<td class=\"nowrap\">{_format_ci_percent(asr.get('wer_ci95'))}</td>"
         f"<td>{_format_percent(asr.get('mean_cer'))}</td>"
+        f"<td class=\"nowrap\">{_format_ci_percent(asr.get('cer_ci95'))}</td>"
+        f"<td>{_format_number(speaker.get('mean_speaker_similarity'), digits=3)}</td>"
         "</tr>"
     )
 
 
-def _html_tradeoff_row(strategy: str, codec: dict, asr: dict) -> str:
+def _html_tradeoff_row(strategy: str, codec: dict, asr: dict, speaker: dict) -> str:
     return (
         "<tr>"
         f"<td>{html.escape(strategy)}</td>"
         f"<td>{_format_percent(codec.get('mean_token_reduction_ratio'))}</td>"
         f"<td>{_format_percent(asr.get('mean_wer'))}</td>"
+        f"<td class=\"nowrap\">{_format_ci_percent(asr.get('wer_ci95'))}</td>"
         f"<td>{_format_percent(asr.get('mean_cer'))}</td>"
+        f"<td>{_format_number(speaker.get('mean_speaker_similarity'), digits=3)}</td>"
         f"<td>{_format_number(codec.get('mean_kv_cache_savings_mb'))}</td>"
         f"<td>{_format_number(codec.get('mean_real_time_factor'), digits=4)}</td>"
         "</tr>"
@@ -449,8 +498,45 @@ def _mean_float(rows: list[dict], key: str) -> float:
     return sum(values) / len(values)
 
 
+def _bootstrap_mean_ci(
+    rows: list[dict],
+    key: str,
+    iterations: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 1337,
+) -> dict[str, float]:
+    import random
+
+    values = [_to_float(row.get(key)) for row in rows if row.get(key) is not None]
+    if not values:
+        return {"low": 0.0, "high": 0.0}
+    if len(values) == 1:
+        return {"low": values[0], "high": values[0]}
+
+    rng = random.Random(seed + sum(ord(char) for char in key) + len(values))
+    means: list[float] = []
+    count = len(values)
+    for _ in range(iterations):
+        total = 0.0
+        for _sample in range(count):
+            total += values[rng.randrange(count)]
+        means.append(total / count)
+
+    means.sort()
+    alpha = 1.0 - confidence
+    low_index = max(0, min(len(means) - 1, int((alpha / 2.0) * len(means))))
+    high_index = max(0, min(len(means) - 1, int((1.0 - alpha / 2.0) * len(means)) - 1))
+    return {"low": means[low_index], "high": means[high_index]}
+
+
 def _format_percent(value: object) -> str:
     return f"{_to_float(value):.2%}"
+
+
+def _format_ci_percent(value: object) -> str:
+    if not isinstance(value, dict):
+        return "0.00%-0.00%"
+    return f"{_to_float(value.get('low')):.2%}-{_to_float(value.get('high')):.2%}"
 
 
 def _format_mb(value: object) -> str:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import random
 from pathlib import Path
 
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
@@ -70,8 +71,10 @@ def summarize_asr(rows: list[dict]) -> dict:
             "row_count": len(strategy_rows),
             "mean_wer": sum(float(row["wer"]) for row in strategy_rows)
             / len(strategy_rows),
+            "wer_ci95": bootstrap_mean_ci(strategy_rows, "wer"),
             "mean_cer": sum(float(row["cer"]) for row in strategy_rows)
             / len(strategy_rows),
+            "cer_ci95": bootstrap_mean_ci(strategy_rows, "cer"),
         }
 
     if not rows:
@@ -79,9 +82,40 @@ def summarize_asr(rows: list[dict]) -> dict:
     return {
         "row_count": len(rows),
         "mean_wer": sum(float(row["wer"]) for row in rows) / len(rows),
+        "wer_ci95": bootstrap_mean_ci(rows, "wer"),
         "mean_cer": sum(float(row["cer"]) for row in rows) / len(rows),
+        "cer_ci95": bootstrap_mean_ci(rows, "cer"),
         "strategy_summary": by_strategy,
     }
+
+
+def bootstrap_mean_ci(
+    rows: list[dict],
+    key: str,
+    iterations: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 1337,
+) -> dict[str, float]:
+    values = [float(row[key]) for row in rows]
+    if not values:
+        return {"low": 0.0, "high": 0.0}
+    if len(values) == 1:
+        return {"low": values[0], "high": values[0]}
+
+    rng = random.Random(seed + sum(ord(char) for char in key) + len(values))
+    means: list[float] = []
+    count = len(values)
+    for _ in range(iterations):
+        total = 0.0
+        for _sample in range(count):
+            total += values[rng.randrange(count)]
+        means.append(total / count)
+
+    means.sort()
+    alpha = 1.0 - confidence
+    low_index = max(0, min(len(means) - 1, int((alpha / 2.0) * len(means))))
+    high_index = max(0, min(len(means) - 1, int((1.0 - alpha / 2.0) * len(means)) - 1))
+    return {"low": means[low_index], "high": means[high_index]}
 
 
 def _parse_sample_name(path: Path) -> tuple[str, str]:

@@ -33,7 +33,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "report":
         run_dir = Path(args.run_dir)
-        for name in ("manifest.json", "metrics.csv", "dashboard.html"):
+        for name in (
+            "manifest.json",
+            "metrics.csv",
+            "dashboard.html",
+            "asr_metrics.csv",
+            "asr_summary.json",
+            "speaker_metrics.csv",
+            "speaker_summary.json",
+        ):
             path = run_dir / name
             status = "ok" if path.exists() else "missing"
             print(f"{status}: {path}")
@@ -41,4 +49,3 @@ def main(argv: list[str] | None = None) -> int:
 
     parser.error(f"unknown command: {args.command}")
     return 2
-

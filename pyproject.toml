@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Benchmarking and compression tools for audio-token language model workloads."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "TBD" }
+license = { text = "MIT" }
 authors = [
   { name = "AudioTokenLab contributors" }
 ]
@@ -16,6 +16,7 @@ keywords = ["audio", "speech", "ml-infra", "tokenization", "benchmarking"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -35,6 +36,9 @@ modal = [
 ]
 asr = [
   "faster-whisper>=1.0.0"
+]
+speaker = [
+  "speechbrain>=1.0.0"
 ]
 
 [tool.setuptools.packages.find]

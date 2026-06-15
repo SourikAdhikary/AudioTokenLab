@@ -200,13 +200,13 @@ Current real-speech Modal result:
 ```text
 Dataset: LibriSpeech dev-clean, 24 clips, 10 speakers, 24 chapters
 Baseline WER: 11.05%
-Uniform WER: 36.57% at ~49.96% token reduction
+Uniform WER: 35.02% at ~49.96% token reduction
 Acoustic salience WER: 17.66% at ~49.96% token reduction
 Energy salience WER: 18.04% at ~49.96% token reduction
 Patch WER: 99.84% at ~74.93% token reduction
 ```
 
-See [REPORT.md](REPORT.md) for the current public benchmark report.
+See [REPORT.md](REPORT.md) for the current public benchmark report, including 95% confidence intervals and SpeechBrain speaker-similarity results.
 
 Expected artifacts:
 
@@ -235,7 +235,7 @@ runs/demo/
 - [x] Energy/VAD-style salience baseline
 - [x] 24-clip LibriSpeech ASR ablation
 - [x] Public benchmark report
-- [ ] Speaker similarity checks
+- [x] Speaker similarity checks
 - [x] HTML dashboard
 - [x] Modal GPU benchmark run
 - [x] ASR-based WER/CER smoke run
@@ -262,4 +262,4 @@ PYTHONPATH=src python3 -m unittest discover tests
 
 ## License
 
-License to be decided before the first code release.
+MIT. Dataset and model licenses remain governed by their upstream providers.

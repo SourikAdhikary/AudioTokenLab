@@ -17,7 +17,12 @@ DEFAULT_LOCAL_OUT = Path("modal-runs")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libsndfile1", "espeak-ng", "ffmpeg")
-    .pip_install("torch>=2.0", "encodec>=0.1.1", "faster-whisper>=1.0.0")
+    .pip_install(
+        "torch>=2.0",
+        "encodec>=0.1.1",
+        "faster-whisper>=1.0.0",
+        "speechbrain>=1.0.0",
+    )
     .env({"PYTHONPATH": str(APP_DIR / "src")})
     .workdir(str(APP_DIR))
     .add_local_dir("src", str(APP_DIR / "src"))
@@ -155,6 +160,10 @@ def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
     from audiotokenlab.datasets import load_dataset
     from audiotokenlab.librispeech import prepare_librispeech_slice
     from audiotokenlab.runner import run_profile
+    from audiotokenlab.speaker_eval import (
+        evaluate_speaker_similarity_with_speechbrain,
+        write_speaker_artifacts,
+    )
 
     work_dir = Path("/tmp/audiotokenlab_librispeech")
     dataset_dir = work_dir / "dataset"
@@ -209,11 +218,17 @@ def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
         compute_type="int8",
     )
     write_asr_artifacts(output_dir, asr_rows)
+    speaker_rows = evaluate_speaker_similarity_with_speechbrain(
+        output_dir / "samples",
+        device="cpu",
+    )
+    write_speaker_artifacts(output_dir, speaker_rows)
     archive = _zip_directory(output_dir)
     return {
         "run_id": "encodec_librispeech_asr",
         "row_count": len(rows),
         "asr_row_count": len(asr_rows),
+        "speaker_row_count": len(speaker_rows),
         "clip_count": len(clips),
         "output_dir": str(output_dir),
         "archive_name": "encodec_librispeech_asr.zip",
@@ -244,6 +259,8 @@ def main(
     print(f"remote rows: {result['row_count']}")
     if "asr_row_count" in result:
         print(f"asr rows: {result['asr_row_count']}")
+    if "speaker_row_count" in result:
+        print(f"speaker rows: {result['speaker_row_count']}")
     if "clip_count" in result:
         print(f"clips: {result['clip_count']}")
 
