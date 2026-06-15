@@ -3,7 +3,7 @@
   "run_date": "2026-06-15",
   "execution": "modal",
   "modal_gpu": "L4",
-  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-pt00u1Xv5YmXCmhyEXaKmO",
+  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-cSbD1joos50zkMK4axaVX1",
   "artifact_root": "modal-runs/encodec_librispeech_asr",
   "dataset": {
     "name": "LibriSpeech dev-clean",
@@ -11,178 +11,268 @@
     "url": "https://www.openslr.org/12/",
     "archive_url": "https://www.openslr.org/resources/12/dev-clean.tar.gz",
     "license": "CC BY 4.0",
-    "clip_count": 24,
-    "speaker_count": 10,
-    "chapter_count": 24,
+    "clip_count": 100,
+    "speaker_count": 40,
+    "chapter_count": 97,
     "sample_rate": 24000
   },
-  "codec_row_count": 120,
-  "asr_row_count": 120,
-  "speaker_row_count": 120,
+  "strategy_set": "tuned",
+  "codec_row_count": 800,
+  "asr_row_count": 800,
+  "speaker_row_count": 800,
   "tokenizer": "encodec_24khz",
   "asr_model": "faster-whisper tiny.en",
   "asr_device": "cpu",
   "asr_compute_type": "int8",
   "speaker_model": "speechbrain/spkrec-ecapa-voxceleb",
+  "publication_artifacts": {
+    "summary_chart": "experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg",
+    "listening_examples": "experiments/results/encodec_librispeech_asr_100clip_listening_examples.md",
+    "listening_audio_dir": "experiments/results/listening_examples"
+  },
   "codec_summary": {
-    "mean_token_reduction_ratio": 0.44961357429159776,
-    "mean_kv_cache_savings_mb": 214.55625,
-    "mean_reconstruction_mse": 0.005687601814713831,
-    "mean_reconstruction_snr_db": -0.11084853156092593
+    "mean_token_reduction_ratio": 0.46818475312631486,
+    "mean_kv_cache_savings_mb": 215.784375,
+    "mean_reconstruction_mse": 0.005193156009650613,
+    "mean_reconstruction_snr_db": -0.2091243348095414
   },
   "codec_strategy_summary": {
     "baseline": {
-      "row_count": 24,
+      "row_count": 100,
       "mean_token_reduction_ratio": 0.0,
       "mean_kv_cache_savings_mb": 0.0,
-      "mean_reconstruction_mse": 0.0007596073708674575,
-      "mean_reconstruction_snr_db": 7.437472220580143,
-      "mean_real_time_factor": 0.006800339405046666
+      "mean_reconstruction_mse": 0.0007982363738875662,
+      "mean_reconstruction_snr_db": 7.046611349548778,
+      "mean_real_time_factor": 0.006299639844364061
     },
     "uniform": {
-      "row_count": 24,
-      "mean_token_reduction_ratio": 0.49960150873329606,
-      "mean_kv_cache_savings_mb": 238.40625,
-      "mean_reconstruction_mse": 0.005515623610185154,
-      "mean_reconstruction_snr_db": -1.2735249953768695,
-      "mean_real_time_factor": 0.00612365231996411
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.005508124151085783,
+      "mean_reconstruction_snr_db": -1.278540913706894,
+      "mean_real_time_factor": 0.005035686861348229
     },
     "acoustic_salience": {
-      "row_count": 24,
-      "mean_token_reduction_ratio": 0.49960150873329606,
-      "mean_kv_cache_savings_mb": 238.40625,
-      "mean_reconstruction_mse": 0.003961952392416789,
-      "mean_reconstruction_snr_db": 0.12446215061904835,
-      "mean_real_time_factor": 0.0047919813327138485
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.004140265831085298,
+      "mean_reconstruction_snr_db": -0.11102147476894048,
+      "mean_real_time_factor": 0.004714913642255691
     },
     "energy_salience": {
-      "row_count": 24,
-      "mean_token_reduction_ratio": 0.49960150873329606,
-      "mean_kv_cache_savings_mb": 238.40625,
-      "mean_reconstruction_mse": 0.00408627654597172,
-      "mean_reconstruction_snr_db": 0.0040251956732687555,
-      "mean_real_time_factor": 0.004755049518249619
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.004256486436605354,
+      "mean_reconstruction_snr_db": -0.23657499502271837,
+      "mean_real_time_factor": 0.00463420182970149
+    },
+    "energy_tuned_e2_t1_o4": {
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.004256642129930428,
+      "mean_reconstruction_snr_db": -0.23665317126258462,
+      "mean_real_time_factor": 0.004629029297996569
+    },
+    "energy_tuned_e2_t2_o2": {
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.004226574884212142,
+      "mean_reconstruction_snr_db": -0.20719428329564468,
+      "mean_real_time_factor": 0.004635869704745202
+    },
+    "energy_tuned_e4_t1_o2": {
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.4993964478401978,
+      "mean_kv_cache_savings_mb": 230.1675,
+      "mean_reconstruction_mse": 0.004246150114976435,
+      "mean_reconstruction_snr_db": -0.2333590315070347,
+      "mean_real_time_factor": 0.004641384464277545
     },
     "patch": {
-      "row_count": 24,
-      "mean_token_reduction_ratio": 0.7492633452581002,
-      "mean_kv_cache_savings_mb": 357.5625,
-      "mean_reconstruction_mse": 0.01411454915412802,
-      "mean_reconstruction_snr_db": -6.84667722930022,
-      "mean_real_time_factor": 0.005764416274127072
+      "row_count": 100,
+      "mean_token_reduction_ratio": 0.7490993379693416,
+      "mean_kv_cache_savings_mb": 345.27,
+      "mean_reconstruction_mse": 0.014112768155421845,
+      "mean_reconstruction_snr_db": -6.416262158461297,
+      "mean_real_time_factor": 0.004740175490059511
     }
   },
   "asr_summary": {
-    "mean_wer": 0.3632375245594534,
+    "mean_wer": 0.2835789359071179,
     "wer_ci95": {
-      "low": 0.29381146620274584,
-      "high": 0.4337302277112688
+      "low": 0.26316223194172345,
+      "high": 0.30770437546727314
     },
-    "mean_cer": 0.27630968283562396,
+    "mean_cer": 0.20489011492546932,
     "cer_ci95": {
-      "low": 0.21252376819103716,
-      "high": 0.3378469362362576
+      "low": 0.18504469844027105,
+      "high": 0.22680140388143097
     },
     "strategy_summary": {
       "baseline": {
-        "row_count": 24,
-        "mean_wer": 0.11048833751386412,
+        "row_count": 100,
+        "mean_wer": 0.09387904220766329,
         "wer_ci95": {
-          "low": 0.043856026665895054,
-          "high": 0.21036620278421317
+          "low": 0.06830780788018057,
+          "high": 0.12403896725097115
         },
-        "mean_cer": 0.045948950453259606,
+        "mean_cer": 0.04939487120731363,
         "cer_ci95": {
-          "low": 0.019336856651912645,
-          "high": 0.08807046912263765
+          "low": 0.03530466411471728,
+          "high": 0.06563821593826721
         }
       },
       "uniform": {
-        "row_count": 24,
-        "mean_wer": 0.3502346530312288,
+        "row_count": 100,
+        "mean_wer": 0.36722675233347446,
         "wer_ci95": {
-          "low": 0.26657806617771107,
-          "high": 0.453370592336974
+          "low": 0.31092529171196576,
+          "high": 0.4329540493883784
         },
-        "mean_cer": 0.18911644024782606,
+        "mean_cer": 0.1884710760651619,
         "cer_ci95": {
-          "low": 0.1432928238465132,
-          "high": 0.24302483931925267
+          "low": 0.1597878336162258,
+          "high": 0.21799809257402258
         }
       },
       "acoustic_salience": {
-        "row_count": 24,
-        "mean_wer": 0.17662271249784875,
+        "row_count": 100,
+        "mean_wer": 0.14772113093550077,
         "wer_ci95": {
-          "low": 0.10310422420154713,
-          "high": 0.28190032101750023
+          "low": 0.11748624840026789,
+          "high": 0.18128722010710718
         },
-        "mean_cer": 0.08281573073493287,
+        "mean_cer": 0.08003553101393131,
         "cer_ci95": {
-          "low": 0.04861035538378195,
-          "high": 0.1240947856374696
+          "low": 0.06290206188312507,
+          "high": 0.09851758633866278
         }
       },
       "energy_salience": {
-        "row_count": 24,
-        "mean_wer": 0.18044448385688958,
+        "row_count": 100,
+        "mean_wer": 0.1723411080686472,
         "wer_ci95": {
-          "low": 0.10630812667089422,
-          "high": 0.28082618167168577
+          "low": 0.1386431454570256,
+          "high": 0.21145756929699164
         },
-        "mean_cer": 0.07913536928450449,
+        "mean_cer": 0.08969748819257113,
         "cer_ci95": {
-          "low": 0.05504775271228426,
-          "high": 0.10718859104497099
+          "low": 0.07302176604707716,
+          "high": 0.10908735937196186
+        }
+      },
+      "energy_tuned_e2_t1_o4": {
+        "row_count": 100,
+        "mean_wer": 0.17696244025969451,
+        "wer_ci95": {
+          "low": 0.14197303214101722,
+          "high": 0.21679240216193313
+        },
+        "mean_cer": 0.09180040764226265,
+        "cer_ci95": {
+          "low": 0.07485643758739548,
+          "high": 0.11097896383595451
+        }
+      },
+      "energy_tuned_e2_t2_o2": {
+        "row_count": 100,
+        "mean_wer": 0.1635148422879109,
+        "wer_ci95": {
+          "low": 0.1289216921823727,
+          "high": 0.20255391860355443
+        },
+        "mean_cer": 0.08509827265018467,
+        "cer_ci95": {
+          "low": 0.06707115342613852,
+          "high": 0.1057248100717444
+        }
+      },
+      "energy_tuned_e4_t1_o2": {
+        "row_count": 100,
+        "mean_wer": 0.14979935797723598,
+        "wer_ci95": {
+          "low": 0.12239846216759893,
+          "high": 0.18204039904272243
+        },
+        "mean_cer": 0.07613471484288914,
+        "cer_ci95": {
+          "low": 0.062494203272995284,
+          "high": 0.09112348394183035
         }
       },
       "patch": {
-        "row_count": 24,
-        "mean_wer": 0.9983974358974358,
+        "row_count": 100,
+        "mean_wer": 0.9971868131868132,
         "wer_ci95": {
-          "low": 0.9951923076923076,
+          "low": 0.992901098901099,
           "high": 1.0
         },
-        "mean_cer": 0.9845319234575967,
+        "mean_cer": 0.9784885577894356,
         "cer_ci95": {
-          "low": 0.9674142867978913,
-          "high": 0.997983870967742
+          "low": 0.9685883210354368,
+          "high": 0.9878527174087677
         }
       }
     }
   },
   "speaker_summary": {
-    "mean_speaker_similarity": 0.640811141312588,
+    "mean_speaker_similarity": 0.7108739817794413,
     "strategy_summary": {
       "baseline": {
-        "row_count": 24,
-        "mean_speaker_similarity": 1.0
+        "row_count": 100,
+        "mean_speaker_similarity": 0.9999999678134919
       },
       "uniform": {
-        "row_count": 24,
-        "mean_speaker_similarity": 0.5107066091150045
+        "row_count": 100,
+        "mean_speaker_similarity": 0.5269093607366085
       },
       "acoustic_salience": {
-        "row_count": 24,
-        "mean_speaker_similarity": 0.8301488930980364
+        "row_count": 100,
+        "mean_speaker_similarity": 0.8236559867858887
       },
       "energy_salience": {
-        "row_count": 24,
-        "mean_speaker_similarity": 0.8344575017690659
+        "row_count": 100,
+        "mean_speaker_similarity": 0.8293376183509826
+      },
+      "energy_tuned_e2_t1_o4": {
+        "row_count": 100,
+        "mean_speaker_similarity": 0.8294888031482697
+      },
+      "energy_tuned_e2_t2_o2": {
+        "row_count": 100,
+        "mean_speaker_similarity": 0.8273744034767151
+      },
+      "energy_tuned_e4_t1_o2": {
+        "row_count": 100,
+        "mean_speaker_similarity": 0.8312638694047928
       },
       "patch": {
-        "row_count": 24,
-        "mean_speaker_similarity": 0.028742702580833186
+        "row_count": 100,
+        "mean_speaker_similarity": 0.018961844518780708
       }
     }
   },
+  "tuning_summary": {
+    "best_energy_strategy": "energy_tuned_e4_t1_o2",
+    "criterion": "lowest mean WER among energy variants, with speaker similarity as tie-breaker",
+    "tested_energy_variants": [
+      "energy_salience",
+      "energy_tuned_e2_t1_o4",
+      "energy_tuned_e2_t2_o2",
+      "energy_tuned_e4_t1_o2"
+    ]
+  },
   "notes": [
-    "Scaled real-speech Modal EnCodec+ASR ablation.",
-    "Uses 24 clips from LibriSpeech dev-clean, spread across 10 speakers and 24 chapters.",
-    "Baseline EnCodec reconstruction preserved ASR reasonably but not perfectly on this larger slice.",
+    "100-clip real-speech Modal EnCodec+ASR+speaker benchmark.",
+    "Uses 100 clips from LibriSpeech dev-clean, spread across 40 speakers and 97 chapters.",
     "Uniform frame dropping reduced tokens by about 50% but substantially damaged ASR and speaker similarity.",
-    "Acoustic salience kept the same about 50% token reduction as uniform dropping, but reduced mean WER from 35.02% to 17.66% on the same clips.",
-    "Energy salience kept the same about 50% token reduction, reached 18.04% mean WER, and had the best speaker similarity among compressed strategies.",
-    "Patch averaging over codec IDs collapsed ASR on this slice, confirming it is a failure baseline rather than a quality-preserving method."
+    "Acoustic salience kept the same about 50% token reduction as uniform dropping, reducing mean WER from 36.72% to 14.77%.",
+    "The best tuned energy variant was energy_tuned_e4_t1_o2: mean WER 14.98%, mean CER 7.61%, speaker similarity 0.831.",
+    "Patch averaging over codec IDs collapsed ASR and speaker similarity, confirming it is a failure baseline."
   ]
 }

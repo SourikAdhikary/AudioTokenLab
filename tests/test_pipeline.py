@@ -22,6 +22,7 @@ from audiotokenlab.librispeech import (
 )
 from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
+from audiotokenlab.publication import write_publication_artifacts
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
 from audiotokenlab.speaker_eval import summarize_speaker, write_speaker_artifacts
@@ -282,6 +283,32 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(compressed.tokens, (2, 11, 6, 15))
         self.assertEqual(compressed.metadata["decode_repeat_counts"], [3, 3])
 
+    def test_strategy_label_is_used_for_metric_identity(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 2, 11, 3, 12, 4, 13),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.08,
+            metadata={
+                "token_layout": "frame_major",
+                "frame_count": 4,
+                "frame_energies": [0.01, 0.9, 0.02, 0.8],
+            },
+        )
+        compressed = compress_tokens(
+            bundle,
+            {
+                "name": "energy_salience",
+                "label": "energy_tuned_test",
+                "factor": 2,
+            },
+        )
+
+        self.assertEqual(compressed.metadata["compression_strategy"], "energy_tuned_test")
+
     def test_frame_energies_match_requested_frame_count(self) -> None:
         energies = _frame_energies((0.0, 1.0, 0.0, 2.0), frame_count=2)
 
@@ -528,6 +555,44 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("Speaker Sim", dashboard)
         self.assertIn("0.750", dashboard)
         self.assertEqual(speaker_summary["row_count"], 2)
+
+    def test_publication_artifacts_write_chart_and_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "metrics.csv").write_text(
+                "clip_id,strategy,token_reduction_ratio,estimated_kv_cache_savings_mb,"
+                "reconstruction_snr_db\n"
+                "clip_a,baseline,0,0,9\n"
+                "clip_a,uniform,0.5,6,-1\n"
+                "clip_a,energy_tuned,0.5,6,0\n",
+                encoding="utf-8",
+            )
+            (root / "asr_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_text,hypothesis_text,wer,cer\n"
+                "clip_a,baseline,/tmp/clip_a__baseline.wav,hello,hello,0,0\n"
+                "clip_a,uniform,/tmp/clip_a__uniform.wav,hello,helo,0.5,0.25\n"
+                "clip_a,energy_tuned,/tmp/clip_a__energy_tuned.wav,hello,hello,0,0\n",
+                encoding="utf-8",
+            )
+            (root / "speaker_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_strategy,speaker_similarity,model_source\n"
+                "clip_a,baseline,/tmp/clip_a__baseline.wav,baseline,1,test\n"
+                "clip_a,uniform,/tmp/clip_a__uniform.wav,baseline,0.5,test\n"
+                "clip_a,energy_tuned,/tmp/clip_a__energy_tuned.wav,baseline,0.9,test\n",
+                encoding="utf-8",
+            )
+
+            summary = write_publication_artifacts(root)
+            chart_exists = (root / "summary_chart.svg").exists()
+            examples_exists = (root / "listening_examples.md").exists()
+            examples_text = (root / "listening_examples.md").read_text(
+                encoding="utf-8",
+            )
+
+        self.assertEqual(summary["best_energy_strategy"], "energy_tuned")
+        self.assertTrue(chart_exists)
+        self.assertTrue(examples_exists)
+        self.assertIn("energy_tuned", examples_text)
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

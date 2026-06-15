@@ -28,7 +28,7 @@ def profile_clip(
         reconstructed = tokenizer.decode(compressed)
         decode_ms = (time.perf_counter() - decode_start) * 1000.0
         result = CompressionResult(
-            strategy=strategy.get("name", "baseline"),
+            strategy=str(strategy.get("label", strategy.get("name", "baseline"))),
             original=original,
             compressed=compressed,
             reconstructed=reconstructed,

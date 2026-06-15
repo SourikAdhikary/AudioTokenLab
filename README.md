@@ -198,15 +198,21 @@ This downloads a tiny slice from LibriSpeech `dev-clean` on Modal, converts sele
 Current real-speech Modal result:
 
 ```text
-Dataset: LibriSpeech dev-clean, 24 clips, 10 speakers, 24 chapters
-Baseline WER: 11.05%
-Uniform WER: 35.02% at ~49.96% token reduction
-Acoustic salience WER: 17.66% at ~49.96% token reduction
-Energy salience WER: 18.04% at ~49.96% token reduction
-Patch WER: 99.84% at ~74.93% token reduction
+Dataset: LibriSpeech dev-clean, 100 clips, 40 speakers, 97 chapters
+Baseline WER: 9.39%
+Uniform WER: 36.72% at ~49.94% token reduction
+Acoustic salience WER: 14.77% at ~49.94% token reduction
+Best tuned energy WER: 14.98% at ~49.94% token reduction
+Patch WER: 99.72% at ~74.91% token reduction
 ```
 
-See [REPORT.md](REPORT.md) for the current public benchmark report, including 95% confidence intervals and SpeechBrain speaker-similarity results.
+See [REPORT.md](REPORT.md) for the current public benchmark report, including 95% confidence intervals, SpeechBrain speaker-similarity results, a tracked summary chart, and listening examples.
+
+Tracked result artifacts:
+
+- [100-clip summary chart](experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg)
+- [100-clip listening examples](experiments/results/encodec_librispeech_asr_100clip_listening_examples.md)
+- [committed example WAVs](experiments/results/listening_examples/)
 
 Expected artifacts:
 
@@ -234,6 +240,8 @@ runs/demo/
 - [x] Acoustic salience sparse-frame baseline
 - [x] Energy/VAD-style salience baseline
 - [x] 24-clip LibriSpeech ASR ablation
+- [x] 100-clip LibriSpeech tuned ablation
+- [x] Shareable result chart and listening-example manifest
 - [x] Public benchmark report
 - [x] Speaker similarity checks
 - [x] HTML dashboard

@@ -151,8 +151,8 @@ def run_speech_asr_profile() -> dict:
     }
 
 
-@app.function(gpu="L4", timeout=60 * 60, memory=8192)
-def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
+@app.function(gpu="L4", timeout=90 * 60, memory=8192)
+def run_librispeech_asr_profile(max_clips: int = 24, strategy_set: str = "final") -> dict:
     from audiotokenlab.asr_eval import (
         transcribe_samples_with_faster_whisper,
         write_asr_artifacts,
@@ -191,13 +191,7 @@ def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
                     "bandwidth": 6.0,
                     "device": "cuda",
                 },
-                "strategies": [
-                    {"name": "baseline"},
-                    {"name": "uniform", "factor": 2},
-                    {"name": "acoustic_salience", "factor": 2},
-                    {"name": "energy_salience", "factor": 2},
-                    {"name": "patch", "patch_size": 4},
-                ],
+                "strategies": _librispeech_strategies(strategy_set),
                 "kv_cache": {
                     "layers": 24,
                     "hidden_size": 1024,
@@ -230,6 +224,7 @@ def run_librispeech_asr_profile(max_clips: int = 24) -> dict:
         "asr_row_count": len(asr_rows),
         "speaker_row_count": len(speaker_rows),
         "clip_count": len(clips),
+        "strategy_set": strategy_set,
         "output_dir": str(output_dir),
         "archive_name": "encodec_librispeech_asr.zip",
         "archive_bytes": archive,
@@ -244,9 +239,10 @@ def main(
     speech_asr: bool = False,
     librispeech_asr: bool = False,
     max_clips: int = 24,
+    strategy_set: str = "final",
 ) -> None:
     if librispeech_asr:
-        result = run_librispeech_asr_profile.remote(max_clips)
+        result = run_librispeech_asr_profile.remote(max_clips, strategy_set)
     elif speech_asr:
         result = run_speech_asr_profile.remote()
     else:
@@ -263,6 +259,8 @@ def main(
         print(f"speaker rows: {result['speaker_row_count']}")
     if "clip_count" in result:
         print(f"clips: {result['clip_count']}")
+    if "strategy_set" in result:
+        print(f"strategy set: {result['strategy_set']}")
 
     if extract:
         extract_dir = target_root / str(result["run_id"])
@@ -281,6 +279,54 @@ def _resolve_output_dir(config_path: Path, configured_output_dir: str | None) ->
     if not output_dir.is_absolute():
         output_dir = (config_path.parent / output_dir).resolve()
     return output_dir
+
+
+def _librispeech_strategies(strategy_set: str) -> list[dict]:
+    base = [
+        {"name": "baseline"},
+        {"name": "uniform", "factor": 2},
+        {"name": "acoustic_salience", "factor": 2},
+        {
+            "name": "energy_salience",
+            "label": "energy_salience",
+            "factor": 2,
+            "energy_weight": 2.0,
+            "transition_weight": 1.0,
+            "onset_weight": 2.0,
+        },
+    ]
+    if strategy_set == "final":
+        return [*base, {"name": "patch", "patch_size": 4}]
+    if strategy_set == "tuned":
+        return [
+            *base,
+            {
+                "name": "energy_salience",
+                "label": "energy_tuned_e4_t1_o2",
+                "factor": 2,
+                "energy_weight": 4.0,
+                "transition_weight": 1.0,
+                "onset_weight": 2.0,
+            },
+            {
+                "name": "energy_salience",
+                "label": "energy_tuned_e2_t2_o2",
+                "factor": 2,
+                "energy_weight": 2.0,
+                "transition_weight": 2.0,
+                "onset_weight": 2.0,
+            },
+            {
+                "name": "energy_salience",
+                "label": "energy_tuned_e2_t1_o4",
+                "factor": 2,
+                "energy_weight": 2.0,
+                "transition_weight": 1.0,
+                "onset_weight": 4.0,
+            },
+            {"name": "patch", "patch_size": 4},
+        ]
+    raise ValueError(f"Unsupported strategy_set: {strategy_set}")
 
 
 def _zip_directory(directory: Path) -> bytes:

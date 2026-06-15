@@ -56,6 +56,7 @@ def evaluate_speaker_similarity_with_speechbrain(
 
 
 def write_speaker_artifacts(output_dir: Path, rows: list[dict]) -> None:
+    from audiotokenlab.publication import write_publication_artifacts
     from audiotokenlab.reporting import write_asr_dashboard
 
     write_speaker_csv(output_dir / "speaker_metrics.csv", rows)
@@ -66,6 +67,7 @@ def write_speaker_artifacts(output_dir: Path, rows: list[dict]) -> None:
     asr_rows = _read_csv_dicts(output_dir / "asr_metrics.csv")
     if asr_rows:
         write_asr_dashboard(output_dir, asr_rows)
+        write_publication_artifacts(output_dir)
 
 
 def write_speaker_csv(path: Path, rows: list[dict]) -> None:

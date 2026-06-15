@@ -5,11 +5,12 @@ from audiotokenlab.models import TokenBundle
 
 def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
     name = strategy.get("name", "baseline")
+    strategy_label = str(strategy.get("label", name))
     if name == "baseline":
-        return _replace(bundle, tokens=bundle.tokens, strategy=name)
+        return _replace(bundle, tokens=bundle.tokens, strategy=strategy_label)
     if name == "uniform":
         factor = int(strategy.get("factor", 2))
-        return _uniform(bundle, factor=factor, strategy=name)
+        return _uniform(bundle, factor=factor, strategy=strategy_label)
     if name == "silence_aware":
         factor = int(strategy.get("factor", 2))
         threshold = int(strategy.get("threshold", 8))
@@ -21,14 +22,14 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
             threshold=threshold,
             threshold_low=int(threshold_low) if threshold_low is not None else None,
             threshold_high=int(threshold_high) if threshold_high is not None else None,
-            strategy=name,
+            strategy=strategy_label,
         )
     if name == "patch":
         patch_size = int(strategy.get("patch_size", 4))
-        return _patch(bundle, patch_size=patch_size, strategy=name)
+        return _patch(bundle, patch_size=patch_size, strategy=strategy_label)
     if name == "acoustic_salience":
         factor = int(strategy.get("factor", 2))
-        return _acoustic_salience(bundle, factor=factor, strategy=name)
+        return _acoustic_salience(bundle, factor=factor, strategy=strategy_label)
     if name == "energy_salience":
         factor = int(strategy.get("factor", 2))
         return _energy_salience(
@@ -38,7 +39,7 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
             transition_weight=float(strategy.get("transition_weight", 1.0)),
             onset_weight=float(strategy.get("onset_weight", 2.0)),
             silence_threshold=float(strategy.get("silence_threshold", 0.05)),
-            strategy=name,
+            strategy=strategy_label,
         )
     raise ValueError(f"Unsupported compression strategy: {name}")
 
