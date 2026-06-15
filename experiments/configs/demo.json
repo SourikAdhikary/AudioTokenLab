@@ -1,0 +1,28 @@
+{
+  "run_id": "demo",
+  "output_dir": "../../runs/demo",
+  "dataset": {
+    "type": "synthetic",
+    "count": 4,
+    "sample_rate": 16000,
+    "duration_seconds": 1.25,
+    "base_frequency": 220.0
+  },
+  "tokenizer": {
+    "name": "dummy",
+    "frame_size": 320,
+    "codebook_size": 256
+  },
+  "strategies": [
+    { "name": "baseline" },
+    { "name": "uniform", "factor": 2 },
+    { "name": "silence_aware", "factor": 3, "threshold": 12 },
+    { "name": "patch", "patch_size": 4 }
+  ],
+  "kv_cache": {
+    "layers": 24,
+    "hidden_size": 1024,
+    "bytes_per_element": 2
+  }
+}
+

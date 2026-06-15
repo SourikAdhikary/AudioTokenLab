@@ -133,8 +133,16 @@ Numbers above are illustrative. The project will only claim results backed by ge
 
 ## Planned CLI
 
+Install locally in editable mode:
+
 ```bash
-audiotokenlab profile --config experiments/configs/demo.yaml
+python3 -m pip install -e .
+```
+
+Run the dependency-free demo profile:
+
+```bash
+audiotokenlab profile --config experiments/configs/demo.json
 audiotokenlab report runs/demo
 ```
 
@@ -151,14 +159,14 @@ runs/demo/
 
 ## Project Roadmap
 
-- [ ] Local pipeline with a dummy tokenizer
+- [x] Local pipeline with a dummy tokenizer
 - [ ] Real neural codec backend
-- [ ] Token profiling and KV-cache estimation
-- [ ] Baseline compression strategies
+- [x] Token profiling and KV-cache estimation
+- [x] Baseline compression strategies
 - [ ] Speech reconstruction evaluation
 - [ ] ASR-based WER/CER regression checks
 - [ ] Speaker similarity checks
-- [ ] HTML dashboard
+- [x] HTML dashboard
 - [ ] Modal GPU benchmark run
 - [ ] Public benchmark report
 
@@ -172,7 +180,13 @@ runs/demo/
 
 ## Status
 
-AudioTokenLab is in early development. The initial repository is being built around the README, benchmark design, and first profiling pipeline.
+AudioTokenLab is in early development. The current scaffold includes a dependency-free profiling pipeline with a dummy tokenizer, compression baselines, KV-cache estimates, CSV/JSON/HTML report artifacts, and unit tests.
+
+Run tests:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover tests
+```
 
 ## License
 
