@@ -17,10 +17,10 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libsndfile1")
     .pip_install("torch>=2.0", "encodec>=0.1.1")
-    .add_local_dir("src", str(APP_DIR / "src"))
-    .add_local_dir("experiments", str(APP_DIR / "experiments"))
     .env({"PYTHONPATH": str(APP_DIR / "src")})
     .workdir(str(APP_DIR))
+    .add_local_dir("src", str(APP_DIR / "src"))
+    .add_local_dir("experiments", str(APP_DIR / "experiments"))
 )
 
 app = modal.App("audiotokenlab", image=image)
@@ -83,4 +83,3 @@ def _zip_directory(directory: Path) -> bytes:
             if path.is_file():
                 archive.write(path, path.relative_to(directory))
     return buffer.getvalue()
-

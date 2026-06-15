@@ -196,14 +196,14 @@ runs/demo/
 - [x] Dependency-free mu-law audio tokenizer baseline
 - [x] Reconstructed WAV sample artifacts
 - [x] Optional EnCodec backend adapter
-- [ ] Verified EnCodec benchmark run
+- [x] Verified EnCodec benchmark run
 - [x] Token profiling and KV-cache estimation
 - [x] Baseline compression strategies
 - [ ] Speech reconstruction evaluation
 - [ ] ASR-based WER/CER regression checks
 - [ ] Speaker similarity checks
 - [x] HTML dashboard
-- [ ] Modal GPU benchmark run
+- [x] Modal GPU benchmark run
 - [ ] Public benchmark report
 
 ## Design Principles
