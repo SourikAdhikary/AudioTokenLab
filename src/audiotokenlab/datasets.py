@@ -11,6 +11,8 @@ def load_dataset(spec: dict) -> list[AudioClip]:
     dataset_type = spec.get("type", "synthetic")
     if dataset_type == "synthetic":
         return _load_synthetic_dataset(spec)
+    if dataset_type == "synthetic_quiet":
+        return _load_synthetic_quiet_dataset(spec)
     if dataset_type == "wav_dir":
         return _load_wav_dir(spec)
     raise ValueError(f"Unsupported dataset type: {dataset_type}")
@@ -42,6 +44,40 @@ def _load_synthetic_dataset(spec: dict) -> list[AudioClip]:
     return clips
 
 
+def _load_synthetic_quiet_dataset(spec: dict) -> list[AudioClip]:
+    count = int(spec.get("count", 3))
+    sample_rate = int(spec.get("sample_rate", 16000))
+    duration_seconds = float(spec.get("duration_seconds", 1.5))
+    base_frequency = float(spec.get("base_frequency", 220.0))
+    speech_seconds = float(spec.get("speech_seconds", 0.28))
+    quiet_seconds = float(spec.get("quiet_seconds", 0.22))
+    clips: list[AudioClip] = []
+
+    for index in range(count):
+        frequency = base_frequency * (1.0 + index * 0.1)
+        samples = _alternating_tone_and_quiet(
+            sample_rate=sample_rate,
+            duration_seconds=duration_seconds,
+            frequency=frequency,
+            speech_seconds=speech_seconds,
+            quiet_seconds=quiet_seconds,
+        )
+        clips.append(
+            AudioClip(
+                clip_id=f"synthetic_quiet_{index:03d}",
+                samples=tuple(samples),
+                sample_rate=sample_rate,
+                source="synthetic_quiet",
+                metadata={
+                    "frequency": frequency,
+                    "speech_seconds": speech_seconds,
+                    "quiet_seconds": quiet_seconds,
+                },
+            )
+        )
+    return clips
+
+
 def _sine_with_envelope(
     sample_rate: int,
     duration_seconds: float,
@@ -55,6 +91,33 @@ def _sine_with_envelope(
         harmonic = 0.25 * math.sin(2.0 * math.pi * frequency * 2.0 * t)
         envelope = 0.6 + 0.4 * math.sin(2.0 * math.pi * 3.0 * t)
         samples.append(max(-1.0, min(1.0, (carrier + harmonic) * envelope * 0.65)))
+    return samples
+
+
+def _alternating_tone_and_quiet(
+    sample_rate: int,
+    duration_seconds: float,
+    frequency: float,
+    speech_seconds: float,
+    quiet_seconds: float,
+) -> list[float]:
+    total_samples = max(1, int(sample_rate * duration_seconds))
+    speech_samples = max(1, int(sample_rate * speech_seconds))
+    quiet_samples = max(1, int(sample_rate * quiet_seconds))
+    cycle_samples = speech_samples + quiet_samples
+    samples: list[float] = []
+
+    for sample_index in range(total_samples):
+        cycle_index = sample_index % cycle_samples
+        if cycle_index >= speech_samples:
+            samples.append(0.0)
+            continue
+        t = sample_index / sample_rate
+        local_phase = cycle_index / speech_samples
+        ramp = min(1.0, local_phase * 10.0, (1.0 - local_phase) * 10.0)
+        carrier = math.sin(2.0 * math.pi * frequency * t)
+        harmonic = 0.2 * math.sin(2.0 * math.pi * frequency * 2.0 * t)
+        samples.append(max(-1.0, min(1.0, (carrier + harmonic) * ramp * 0.7)))
     return samples
 
 
@@ -97,4 +160,3 @@ def _read_wav(path: Path) -> AudioClip:
         source=str(path),
         metadata={"channels": channels, "sample_width": sample_width},
     )
-

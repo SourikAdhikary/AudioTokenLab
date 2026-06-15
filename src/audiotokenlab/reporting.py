@@ -34,12 +34,17 @@ def write_manifest(path: Path, config: ProfileConfig, rows: list[MetricRow]) -> 
         "clip_count": len({row.clip_id for row in rows}),
         "output_dir": str(config.output_dir),
         "summary": summarize(rows),
+        "strategy_summary": summarize_by_strategy(rows),
     }
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) -> None:
     summary = summarize(rows)
+    strategy_rows = "\n".join(
+        _html_strategy_row(strategy, values)
+        for strategy, values in summarize_by_strategy(rows).items()
+    )
     table_rows = "\n".join(_html_row(row) for row in rows)
     document = f"""<!doctype html>
 <html lang="en">
@@ -72,6 +77,23 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
     {_summary_card("Mean KV Savings", f'{summary["mean_kv_cache_savings_mb"]:.2f} MB')}
     {_summary_card("Mean MSE", f'{summary["mean_reconstruction_mse"]:.5f}')}
   </section>
+  <h2>Strategy Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Strategy</th>
+        <th>Rows</th>
+        <th>Mean Reduction</th>
+        <th>Mean KV Savings MB</th>
+        <th>Mean MSE</th>
+        <th>Mean RTF</th>
+      </tr>
+    </thead>
+    <tbody>
+      {strategy_rows}
+    </tbody>
+  </table>
+  <h2>Clip Details</h2>
   <table>
     <thead>
       <tr>
@@ -117,12 +139,53 @@ def summarize(rows: list[MetricRow]) -> dict:
     }
 
 
+def summarize_by_strategy(rows: list[MetricRow]) -> dict[str, dict]:
+    grouped: dict[str, list[MetricRow]] = {}
+    for row in rows:
+        grouped.setdefault(row.strategy, []).append(row)
+
+    summary: dict[str, dict] = {}
+    for strategy in sorted(grouped):
+        strategy_rows = grouped[strategy]
+        summary[strategy] = {
+            "row_count": len(strategy_rows),
+            "mean_token_reduction_ratio": sum(
+                row.token_reduction_ratio for row in strategy_rows
+            )
+            / len(strategy_rows),
+            "mean_kv_cache_savings_mb": sum(
+                row.estimated_kv_cache_savings_mb for row in strategy_rows
+            )
+            / len(strategy_rows),
+            "mean_reconstruction_mse": sum(
+                row.reconstruction_mse for row in strategy_rows
+            )
+            / len(strategy_rows),
+            "mean_real_time_factor": sum(row.real_time_factor for row in strategy_rows)
+            / len(strategy_rows),
+        }
+    return summary
+
+
 def _summary_card(label: str, value: object) -> str:
     return (
         '<div class="metric">'
         f'<div class="label">{html.escape(label)}</div>'
         f'<div class="value">{html.escape(str(value))}</div>'
         "</div>"
+    )
+
+
+def _html_strategy_row(strategy: str, values: dict) -> str:
+    return (
+        "<tr>"
+        f"<td>{html.escape(strategy)}</td>"
+        f"<td>{values['row_count']}</td>"
+        f"<td>{values['mean_token_reduction_ratio']:.2%}</td>"
+        f"<td>{values['mean_kv_cache_savings_mb']:.2f}</td>"
+        f"<td>{values['mean_reconstruction_mse']:.5f}</td>"
+        f"<td>{values['mean_real_time_factor']:.4f}</td>"
+        "</tr>"
     )
 
 
@@ -140,4 +203,3 @@ def _html_row(row: MetricRow) -> str:
         f"<td>{row.real_time_factor:.4f}</td>"
         "</tr>"
     )
-

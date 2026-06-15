@@ -9,6 +9,7 @@ from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
+from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
 from audiotokenlab.tokenizers import build_tokenizer
 
@@ -39,6 +40,26 @@ class PipelineTest(unittest.TestCase):
 
         self.assertLess(compressed.token_count, bundle.token_count)
 
+    def test_silence_aware_compression_reduces_quiet_tokens(self) -> None:
+        clip = load_dataset(
+            {
+                "type": "synthetic_quiet",
+                "count": 1,
+                "sample_rate": 8000,
+                "duration_seconds": 1.0,
+                "speech_seconds": 0.15,
+                "quiet_seconds": 0.35,
+            }
+        )[0]
+        tokenizer = build_tokenizer({"name": "dummy", "frame_size": 80})
+        bundle = tokenizer.encode(clip)
+        compressed = compress_tokens(
+            bundle,
+            {"name": "silence_aware", "factor": 3, "threshold": 4},
+        )
+
+        self.assertLess(compressed.token_count, bundle.token_count)
+
     def test_profile_clip_emits_metric_rows(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
         tokenizer = build_tokenizer({"name": "dummy"})
@@ -52,6 +73,21 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0].strategy, "baseline")
         self.assertGreaterEqual(rows[1].token_reduction_ratio, 0.0)
+
+    def test_strategy_summary_groups_rows(self) -> None:
+        clip = load_dataset({"type": "synthetic", "count": 1})[0]
+        tokenizer = build_tokenizer({"name": "dummy"})
+        rows = profile_clip(
+            clip,
+            tokenizer,
+            [{"name": "baseline"}, {"name": "uniform", "factor": 2}],
+            {"layers": 2, "hidden_size": 16, "bytes_per_element": 2},
+        )
+        summary = summarize_by_strategy(rows)
+
+        self.assertEqual(sorted(summary), ["baseline", "uniform"])
+        self.assertEqual(summary["baseline"]["row_count"], 1)
+        self.assertGreater(summary["uniform"]["mean_token_reduction_ratio"], 0.0)
 
     def test_kv_cache_estimate(self) -> None:
         mb = estimate_kv_cache_mb(
@@ -103,4 +139,3 @@ class PipelineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

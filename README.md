@@ -146,6 +146,13 @@ audiotokenlab profile --config experiments/configs/demo.json
 audiotokenlab report runs/demo
 ```
 
+Run a quiet-segment workload that exercises silence-aware compression:
+
+```bash
+audiotokenlab profile --config experiments/configs/quiet_demo.json
+audiotokenlab report runs/quiet_demo
+```
+
 Expected artifacts:
 
 ```text
@@ -160,6 +167,7 @@ runs/demo/
 ## Project Roadmap
 
 - [x] Local pipeline with a dummy tokenizer
+- [x] Quiet-segment synthetic workload for silence-aware compression
 - [ ] Real neural codec backend
 - [x] Token profiling and KV-cache estimation
 - [x] Baseline compression strategies
