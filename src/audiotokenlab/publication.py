@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 
 
+ChartPoint = tuple[str, float, float, float, float, float, float]
+PlacedChartPoint = tuple[ChartPoint, float, float]
+
 PREFERRED_EXAMPLE_STRATEGIES = (
     "baseline",
     "uniform",
@@ -69,12 +72,12 @@ def build_publication_summary(
 
 
 def write_summary_chart(path: Path, summary: dict[str, dict]) -> None:
-    width = 900
-    height = 520
+    width = 1040
+    height = 620
     margin_left = 90
-    margin_right = 160
-    margin_top = 48
-    margin_bottom = 72
+    margin_right = 380
+    margin_top = 64
+    margin_bottom = 78
     plot_width = width - margin_left - margin_right
     plot_height = height - margin_top - margin_bottom
 
@@ -96,12 +99,13 @@ def write_summary_chart(path: Path, summary: dict[str, dict]) -> None:
         "energy_tuned": "#8a7a25",
         "patch": "#8b2f3f",
     }
+    points = _ordered_chart_points(points)
     elements = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         "<title>AudioTokenLab token reduction vs WER</title>",
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         '<text x="40" y="30" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#172026">Token reduction vs ASR WER</text>',
-        '<text x="40" y="52" font-family="Arial, sans-serif" font-size="13" fill="#53606b">Bubble size is mean speaker similarity. Lower WER is better.</text>',
+        '<text x="40" y="52" font-family="Arial, sans-serif" font-size="13" fill="#53606b">Bubble size is mean speaker similarity. Lower WER is better. Close bubbles are offset with leader lines.</text>',
         _line(margin_left, margin_top, margin_left, margin_top + plot_height),
         _line(margin_left, margin_top + plot_height, margin_left + plot_width, margin_top + plot_height),
     ]
@@ -122,18 +126,59 @@ def write_summary_chart(path: Path, summary: dict[str, dict]) -> None:
         f'<text x="20" y="{margin_top + 200}" font-family="Arial, sans-serif" font-size="13" fill="#53606b" transform="rotate(-90 20 {margin_top + 200})">Mean WER</text>'
     )
 
-    for strategy, x, y, radius, reduction, wer, speaker in points:
-        color = palette.get(strategy, "#4d5f6f")
-        label = strategy
+    display_points = _spread_chart_points(
+        points,
+        margin_left,
+        margin_left + plot_width,
+        margin_top,
+        margin_top + plot_height,
+    )
+    for (
+        _index,
+        ((_, x, y, _radius, _reduction, _wer, _speaker), display_x, display_y),
+    ) in enumerate(display_points, 1):
+        if abs(display_x - x) > 1.0 or abs(display_y - y) > 1.0:
+            elements.append(_line(x, y, display_x, display_y, stroke="#c8d0d8", dash="3 3"))
+            elements.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>'
+            )
+
+    for (
+        index,
+        ((strategy, _x, _y, radius, _reduction, _wer, _speaker), display_x, display_y),
+    ) in enumerate(display_points, 1):
+        color = _strategy_color(strategy, palette)
         elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{radius:.1f}" fill="{color}" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>'
+            f'<circle cx="{display_x:.1f}" cy="{display_y:.1f}" r="{radius:.1f}" fill="{color}" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>'
         )
         elements.append(
             _text(
-                min(x + radius + 6, width - margin_right + 8),
-                y + 4,
-                f"{label} ({wer:.1%}, sim {speaker:.2f})",
-                12,
+                display_x - (4 if index < 10 else 7),
+                display_y + 4,
+                str(index),
+                13,
+                fill="#ffffff",
+                weight="700",
+            )
+        )
+    legend_x = margin_left + plot_width + 36
+    legend_y = margin_top
+    elements.append(_text(legend_x, legend_y - 14, "Legend", 15, weight="700"))
+    for index, (strategy, _x, _y, _radius, reduction, wer, speaker) in enumerate(points, 1):
+        color = _strategy_color(strategy, palette)
+        y = legend_y + (index - 1) * 34
+        elements.append(
+            f'<circle cx="{legend_x + 9:.1f}" cy="{y - 4:.1f}" r="9" fill="{color}" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>'
+        )
+        elements.append(_text(legend_x + 5, y, str(index), 10, fill="#ffffff", weight="700"))
+        elements.append(_text(legend_x + 26, y - 6, strategy, 12, weight="700"))
+        elements.append(
+            _text(
+                legend_x + 26,
+                y + 10,
+                f"tokens {reduction:.1%} | WER {wer:.1%} | sim {speaker:.2f}",
+                11,
+                fill="#53606b",
             )
         )
     elements.append("</svg>")
@@ -240,19 +285,119 @@ def _to_float(value: object) -> float:
     return float(value)
 
 
-def _line(x1: float, y1: float, x2: float, y2: float) -> str:
+def _line(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    stroke: str = "#9aa7b2",
+    dash: str = "",
+) -> str:
+    dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
     return (
         f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-        'stroke="#9aa7b2" stroke-width="1"/>'
+        f'stroke="{stroke}" stroke-width="1"{dash_attr}/>'
     )
 
 
-def _text(x: float, y: float, value: str, size: int) -> str:
+def _text(
+    x: float,
+    y: float,
+    value: str,
+    size: int,
+    fill: str = "#172026",
+    weight: str = "400",
+) -> str:
     return (
         f'<text x="{x:.1f}" y="{y:.1f}" font-family="Arial, sans-serif" '
-        f'font-size="{size}" fill="#172026">{html.escape(value)}</text>'
+        f'font-size="{size}" font-weight="{weight}" fill="{fill}">{html.escape(value)}</text>'
     )
 
 
 def _escape_markdown(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ")
+
+
+def _ordered_chart_points(points: list[ChartPoint]) -> list[ChartPoint]:
+    preferred = {
+        "baseline": 0,
+        "uniform": 1,
+        "acoustic_salience": 2,
+        "energy_salience": 3,
+        "energy_tuned_e4_t1_o2": 4,
+        "patch": 99,
+    }
+    return sorted(points, key=lambda item: (preferred.get(item[0], 50), item[0]))
+
+
+def _spread_chart_points(
+    points: list[ChartPoint],
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[PlacedChartPoint]:
+    offsets = [
+        (0, 0),
+        (-54, -54),
+        (-54, 0),
+        (-54, 54),
+        (0, -54),
+        (0, 54),
+        (54, -54),
+        (54, 0),
+        (54, 54),
+        (-108, -54),
+        (-108, 54),
+        (108, -54),
+        (108, 54),
+    ]
+    placed: list[PlacedChartPoint] = []
+    for point in points:
+        _strategy, x, y, radius, _reduction, _wer, _speaker = point
+        candidates = []
+        for dx, dy in offsets:
+            display_x = max(x_min + radius, min(x_max - radius, x + dx))
+            display_y = max(y_min + radius, min(y_max - radius, y + dy))
+            candidates.append((display_x, display_y, dx * dx + dy * dy))
+        for display_x, display_y, _distance in sorted(candidates, key=lambda item: item[2]):
+            if all(
+                _distance_between(display_x, display_y, other_x, other_y)
+                >= radius + other_point[3] + 8
+                for other_point, other_x, other_y in placed
+            ):
+                placed.append((point, display_x, display_y))
+                break
+        else:
+            display_x, display_y, _distance = min(
+                candidates,
+                key=lambda candidate: _overlap_score(candidate[0], candidate[1], radius, placed),
+            )
+            placed.append((point, display_x, display_y))
+    return placed
+
+
+def _strategy_color(strategy: str, palette: dict[str, str]) -> str:
+    if strategy in palette:
+        return palette[strategy]
+    if strategy.startswith("energy_tuned"):
+        return "#8a7a25"
+    return "#4d5f6f"
+
+
+def _distance_between(x1: float, y1: float, x2: float, y2: float) -> float:
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+
+
+def _overlap_score(
+    x: float,
+    y: float,
+    radius: float,
+    placed: list[PlacedChartPoint],
+) -> float:
+    score = 0.0
+    for other_point, other_x, other_y in placed:
+        clearance = _distance_between(x, y, other_x, other_y) - radius - other_point[3] - 8
+        if clearance < 0:
+            score += abs(clearance)
+    return score

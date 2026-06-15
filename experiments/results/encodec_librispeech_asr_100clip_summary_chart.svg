@@ -1,50 +1,95 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="620" viewBox="0 0 1040 620">
 <title>AudioTokenLab token reduction vs WER</title>
 <rect width="100%" height="100%" fill="#ffffff"/>
 <text x="40" y="30" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#172026">Token reduction vs ASR WER</text>
-<text x="40" y="52" font-family="Arial, sans-serif" font-size="13" fill="#53606b">Bubble size is mean speaker similarity. Lower WER is better.</text>
-<line x1="90.0" y1="48.0" x2="90.0" y2="448.0" stroke="#9aa7b2" stroke-width="1"/>
-<line x1="90.0" y1="448.0" x2="740.0" y2="448.0" stroke="#9aa7b2" stroke-width="1"/>
-<line x1="90.0" y1="448.0" x2="90.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="74.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">0%</text>
-<line x1="220.0" y1="448.0" x2="220.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="204.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">20%</text>
-<line x1="350.0" y1="448.0" x2="350.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="334.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">40%</text>
-<line x1="480.0" y1="448.0" x2="480.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="464.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">60%</text>
-<line x1="610.0" y1="448.0" x2="610.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="594.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">80%</text>
-<line x1="740.0" y1="448.0" x2="740.0" y2="454.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="724.0" y="476.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">100%</text>
-<line x1="84.0" y1="48.0" x2="90.0" y2="48.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="52.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">0%</text>
-<line x1="84.0" y1="128.0" x2="90.0" y2="128.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="132.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">20%</text>
-<line x1="84.0" y1="208.0" x2="90.0" y2="208.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="212.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">40%</text>
-<line x1="84.0" y1="288.0" x2="90.0" y2="288.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="292.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">60%</text>
-<line x1="84.0" y1="368.0" x2="90.0" y2="368.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="372.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">80%</text>
-<line x1="84.0" y1="448.0" x2="90.0" y2="448.0" stroke="#9aa7b2" stroke-width="1"/>
-<text x="30.0" y="452.0" font-family="Arial, sans-serif" font-size="12" fill="#172026">100%</text>
-<text x="260.0" y="498.0" font-family="Arial, sans-serif" font-size="13" fill="#172026">Mean token reduction</text>
-<text x="20" y="248" font-family="Arial, sans-serif" font-size="13" fill="#53606b" transform="rotate(-90 20 248)">Mean WER</text>
-<circle cx="414.6" cy="107.1" r="19.4" fill="#2f8f5b" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="440.0" y="111.1" font-family="Arial, sans-serif" font-size="12" fill="#172026">acoustic_salience (14.8%, sim 0.82)</text>
-<circle cx="90.0" cy="85.6" r="22.0" fill="#2f6fbb" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="118.0" y="89.6" font-family="Arial, sans-serif" font-size="12" fill="#172026">baseline (9.4%, sim 1.00)</text>
-<circle cx="414.6" cy="116.9" r="19.4" fill="#7661b3" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="440.0" y="120.9" font-family="Arial, sans-serif" font-size="12" fill="#172026">energy_salience (17.2%, sim 0.83)</text>
-<circle cx="414.6" cy="118.8" r="19.4" fill="#4d5f6f" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="440.1" y="122.8" font-family="Arial, sans-serif" font-size="12" fill="#172026">energy_tuned_e2_t1_o4 (17.7%, sim 0.83)</text>
-<circle cx="414.6" cy="113.4" r="19.4" fill="#4d5f6f" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="440.0" y="117.4" font-family="Arial, sans-serif" font-size="12" fill="#172026">energy_tuned_e2_t2_o2 (16.4%, sim 0.83)</text>
-<circle cx="414.6" cy="107.9" r="19.5" fill="#4d5f6f" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="440.1" y="111.9" font-family="Arial, sans-serif" font-size="12" fill="#172026">energy_tuned_e4_t1_o2 (15.0%, sim 0.83)</text>
-<circle cx="576.9" cy="446.9" r="7.3" fill="#8b2f3f" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="590.2" y="450.9" font-family="Arial, sans-serif" font-size="12" fill="#172026">patch (99.7%, sim 0.02)</text>
-<circle cx="414.6" cy="194.9" r="14.9" fill="#b2552d" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
-<text x="435.5" y="198.9" font-family="Arial, sans-serif" font-size="12" fill="#172026">uniform (36.7%, sim 0.53)</text>
+<text x="40" y="52" font-family="Arial, sans-serif" font-size="13" fill="#53606b">Bubble size is mean speaker similarity. Lower WER is better. Close bubbles are offset with leader lines.</text>
+<line x1="90.0" y1="64.0" x2="90.0" y2="542.0" stroke="#9aa7b2" stroke-width="1"/>
+<line x1="90.0" y1="542.0" x2="660.0" y2="542.0" stroke="#9aa7b2" stroke-width="1"/>
+<line x1="90.0" y1="542.0" x2="90.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="74.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">0%</text>
+<line x1="204.0" y1="542.0" x2="204.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="188.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">20%</text>
+<line x1="318.0" y1="542.0" x2="318.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="302.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">40%</text>
+<line x1="432.0" y1="542.0" x2="432.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="416.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">60%</text>
+<line x1="546.0" y1="542.0" x2="546.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="530.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">80%</text>
+<line x1="660.0" y1="542.0" x2="660.0" y2="548.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="644.0" y="570.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">100%</text>
+<line x1="84.0" y1="64.0" x2="90.0" y2="64.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="68.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">0%</text>
+<line x1="84.0" y1="159.6" x2="90.0" y2="159.6" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="163.6" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">20%</text>
+<line x1="84.0" y1="255.2" x2="90.0" y2="255.2" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="259.2" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">40%</text>
+<line x1="84.0" y1="350.8" x2="90.0" y2="350.8" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="354.8" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">60%</text>
+<line x1="84.0" y1="446.4" x2="90.0" y2="446.4" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="450.4" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">80%</text>
+<line x1="84.0" y1="542.0" x2="90.0" y2="542.0" stroke="#9aa7b2" stroke-width="1"/>
+<text x="30.0" y="546.0" font-family="Arial, sans-serif" font-size="12" font-weight="400" fill="#172026">100%</text>
+<text x="260.0" y="598.0" font-family="Arial, sans-serif" font-size="13" font-weight="400" fill="#172026">Mean token reduction</text>
+<text x="20" y="264" font-family="Arial, sans-serif" font-size="13" fill="#53606b" transform="rotate(-90 20 264)">Mean WER</text>
+<line x1="90.0" y1="108.9" x2="112.0" y2="108.9" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="90.0" cy="108.9" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<line x1="374.7" y1="146.4" x2="320.7" y2="146.4" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="374.7" cy="146.4" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<line x1="374.7" y1="135.6" x2="374.7" y2="83.5" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="374.7" cy="135.6" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<line x1="374.7" y1="148.6" x2="428.7" y2="148.6" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="374.7" cy="148.6" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<line x1="374.7" y1="142.2" x2="374.7" y2="196.2" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="374.7" cy="142.2" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<line x1="517.0" y1="540.7" x2="517.0" y2="534.7" stroke="#c8d0d8" stroke-width="1" stroke-dasharray="3 3"/>
+<circle cx="517.0" cy="540.7" r="2.5" fill="#ffffff" stroke="#53606b" stroke-width="1"/>
+<circle cx="112.0" cy="108.9" r="22.0" fill="#2f6fbb" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="108.0" y="112.9" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">1</text>
+<circle cx="374.7" cy="239.5" r="14.9" fill="#b2552d" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="370.7" y="243.5" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">2</text>
+<circle cx="374.7" cy="134.6" r="19.4" fill="#2f8f5b" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="370.7" y="138.6" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">3</text>
+<circle cx="320.7" cy="146.4" r="19.4" fill="#7661b3" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="316.7" y="150.4" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">4</text>
+<circle cx="374.7" cy="83.5" r="19.5" fill="#8a7a25" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="370.7" y="87.5" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">5</text>
+<circle cx="428.7" cy="148.6" r="19.4" fill="#8a7a25" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="424.7" y="152.6" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">6</text>
+<circle cx="374.7" cy="196.2" r="19.4" fill="#8a7a25" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="370.7" y="200.2" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">7</text>
+<circle cx="517.0" cy="534.7" r="7.3" fill="#8b2f3f" fill-opacity="0.78" stroke="#172026" stroke-width="1"/>
+<text x="513.0" y="538.7" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">8</text>
+<text x="696.0" y="50.0" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#172026">Legend</text>
+<circle cx="705.0" cy="60.0" r="9" fill="#2f6fbb" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="64.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">1</text>
+<text x="722.0" y="58.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">baseline</text>
+<text x="722.0" y="74.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 0.0% | WER 9.4% | sim 1.00</text>
+<circle cx="705.0" cy="94.0" r="9" fill="#b2552d" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="98.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">2</text>
+<text x="722.0" y="92.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">uniform</text>
+<text x="722.0" y="108.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 36.7% | sim 0.53</text>
+<circle cx="705.0" cy="128.0" r="9" fill="#2f8f5b" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="132.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">3</text>
+<text x="722.0" y="126.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">acoustic_salience</text>
+<text x="722.0" y="142.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 14.8% | sim 0.82</text>
+<circle cx="705.0" cy="162.0" r="9" fill="#7661b3" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="166.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">4</text>
+<text x="722.0" y="160.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">energy_salience</text>
+<text x="722.0" y="176.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 17.2% | sim 0.83</text>
+<circle cx="705.0" cy="196.0" r="9" fill="#8a7a25" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="200.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">5</text>
+<text x="722.0" y="194.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">energy_tuned_e4_t1_o2</text>
+<text x="722.0" y="210.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 15.0% | sim 0.83</text>
+<circle cx="705.0" cy="230.0" r="9" fill="#8a7a25" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="234.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">6</text>
+<text x="722.0" y="228.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">energy_tuned_e2_t1_o4</text>
+<text x="722.0" y="244.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 17.7% | sim 0.83</text>
+<circle cx="705.0" cy="264.0" r="9" fill="#8a7a25" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="268.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">7</text>
+<text x="722.0" y="262.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">energy_tuned_e2_t2_o2</text>
+<text x="722.0" y="278.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 49.9% | WER 16.4% | sim 0.83</text>
+<circle cx="705.0" cy="298.0" r="9" fill="#8b2f3f" fill-opacity="0.86" stroke="#172026" stroke-width="1"/>
+<text x="701.0" y="302.0" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">8</text>
+<text x="722.0" y="296.0" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172026">patch</text>
+<text x="722.0" y="312.0" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#53606b">tokens 74.9% | WER 99.7% | sim 0.02</text>
 </svg>
