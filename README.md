@@ -186,6 +186,23 @@ modal run modal_app.py --speech-asr
 
 This synthesizes two tiny speech clips with `espeak-ng`, runs EnCodec compression, transcribes reconstructed samples with `faster-whisper`, and writes `asr_metrics.csv` plus `asr_summary.json`.
 
+Run the real-speech LibriSpeech ASR benchmark:
+
+```bash
+modal run modal_app.py --librispeech-asr --max-clips 4
+```
+
+This downloads a tiny slice from LibriSpeech `dev-clean` on Modal, converts selected FLAC clips to 24 kHz WAV, runs EnCodec compression, and evaluates reconstructed samples with `faster-whisper`.
+
+First real-speech smoke result:
+
+```text
+Dataset: LibriSpeech dev-clean, 4 clips
+Baseline WER: 3.45%
+Uniform WER: 52.26% at ~49.93% token reduction
+Patch WER: 100.00% at ~74.84% token reduction
+```
+
 Expected artifacts:
 
 ```text
@@ -213,6 +230,7 @@ runs/demo/
 - [x] HTML dashboard
 - [x] Modal GPU benchmark run
 - [x] ASR-based WER/CER smoke run
+- [x] Real-speech LibriSpeech smoke run
 - [ ] Public benchmark report
 
 ## Design Principles

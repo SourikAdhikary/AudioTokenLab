@@ -144,14 +144,91 @@ def run_speech_asr_profile() -> dict:
     }
 
 
+@app.function(gpu="L4", timeout=35 * 60, memory=8192)
+def run_librispeech_asr_profile(max_clips: int = 4) -> dict:
+    from audiotokenlab.asr_eval import (
+        transcribe_samples_with_faster_whisper,
+        write_asr_artifacts,
+    )
+    from audiotokenlab.datasets import load_dataset
+    from audiotokenlab.librispeech import prepare_librispeech_slice
+    from audiotokenlab.runner import run_profile
+
+    work_dir = Path("/tmp/audiotokenlab_librispeech")
+    dataset_dir = work_dir / "dataset"
+    output_dir = work_dir / "runs" / "encodec_librispeech_asr"
+    manifest_path = prepare_librispeech_slice(
+        dataset_dir,
+        max_clips=max_clips,
+        sample_rate=24000,
+    )
+    clips = load_dataset({"type": "wav_manifest", "path": str(manifest_path)})
+    references = {
+        clip.clip_id: str(clip.metadata.get("transcript", ""))
+        for clip in clips
+    }
+    config_path = work_dir / "librispeech_asr_config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "run_id": "encodec_librispeech_asr",
+                "output_dir": str(output_dir),
+                "dataset": {"type": "wav_manifest", "path": str(manifest_path)},
+                "tokenizer": {
+                    "name": "encodec",
+                    "model_name": "encodec_24khz",
+                    "bandwidth": 6.0,
+                    "device": "cuda",
+                },
+                "strategies": [
+                    {"name": "baseline"},
+                    {"name": "uniform", "factor": 2},
+                    {"name": "patch", "patch_size": 4},
+                ],
+                "kv_cache": {
+                    "layers": 24,
+                    "hidden_size": 1024,
+                    "bytes_per_element": 2,
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    rows = run_profile(str(config_path))
+    asr_rows = transcribe_samples_with_faster_whisper(
+        output_dir / "samples",
+        references,
+        model_name="tiny.en",
+        device="cpu",
+        compute_type="int8",
+    )
+    write_asr_artifacts(output_dir, asr_rows)
+    archive = _zip_directory(output_dir)
+    return {
+        "run_id": "encodec_librispeech_asr",
+        "row_count": len(rows),
+        "asr_row_count": len(asr_rows),
+        "clip_count": len(clips),
+        "output_dir": str(output_dir),
+        "archive_name": "encodec_librispeech_asr.zip",
+        "archive_bytes": archive,
+    }
+
+
 @app.local_entrypoint()
 def main(
     config_path: str = DEFAULT_CONFIG,
     local_out: str = str(DEFAULT_LOCAL_OUT),
     extract: bool = True,
     speech_asr: bool = False,
+    librispeech_asr: bool = False,
+    max_clips: int = 4,
 ) -> None:
-    if speech_asr:
+    if librispeech_asr:
+        result = run_librispeech_asr_profile.remote(max_clips)
+    elif speech_asr:
         result = run_speech_asr_profile.remote()
     else:
         result = run_encodec_profile.remote(config_path)
@@ -163,6 +240,8 @@ def main(
     print(f"remote rows: {result['row_count']}")
     if "asr_row_count" in result:
         print(f"asr rows: {result['asr_row_count']}")
+    if "clip_count" in result:
+        print(f"clips: {result['clip_count']}")
 
     if extract:
         extract_dir = target_root / str(result["run_id"])

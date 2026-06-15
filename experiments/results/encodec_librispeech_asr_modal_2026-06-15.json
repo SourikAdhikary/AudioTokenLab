@@ -1,0 +1,83 @@
+{
+  "run_id": "encodec_librispeech_asr",
+  "run_date": "2026-06-15",
+  "execution": "modal",
+  "modal_gpu": "L4",
+  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-oD3bM2P5umjTukfQhdkVOl",
+  "artifact_root": "modal-runs/encodec_librispeech_asr",
+  "dataset": {
+    "name": "LibriSpeech dev-clean",
+    "source": "OpenSLR SLR12",
+    "url": "https://www.openslr.org/12/",
+    "archive_url": "https://www.openslr.org/resources/12/dev-clean.tar.gz",
+    "license": "CC BY 4.0",
+    "clip_count": 4,
+    "sample_rate": 24000
+  },
+  "codec_row_count": 12,
+  "asr_row_count": 12,
+  "tokenizer": "encodec_24khz",
+  "asr_model": "faster-whisper tiny.en",
+  "asr_device": "cpu",
+  "asr_compute_type": "int8",
+  "codec_summary": {
+    "mean_token_reduction_ratio": 0.4159104009243512,
+    "mean_kv_cache_savings_mb": 107.3125,
+    "mean_reconstruction_mse": 0.006831618721726669,
+    "mean_reconstruction_snr_db": 0.6360461320982285
+  },
+  "codec_strategy_summary": {
+    "baseline": {
+      "row_count": 4,
+      "mean_token_reduction_ratio": 0.0,
+      "mean_kv_cache_savings_mb": 0.0,
+      "mean_reconstruction_mse": 0.0005217209343507262,
+      "mean_reconstruction_snr_db": 8.838323344916933,
+      "mean_real_time_factor": 0.00991505438115872
+    },
+    "uniform": {
+      "row_count": 4,
+      "mean_token_reduction_ratio": 0.4993261259690345,
+      "mean_kv_cache_savings_mb": 128.8125,
+      "mean_reconstruction_mse": 0.005428668404965258,
+      "mean_reconstruction_snr_db": -1.301822437317453,
+      "mean_real_time_factor": 0.008065986317308975
+    },
+    "patch": {
+      "row_count": 4,
+      "mean_token_reduction_ratio": 0.7484050768040191,
+      "mean_kv_cache_savings_mb": 193.125,
+      "mean_reconstruction_mse": 0.014544466825864022,
+      "mean_reconstruction_snr_db": -5.628362511304795,
+      "mean_real_time_factor": 0.009499908780050755
+    }
+  },
+  "asr_summary": {
+    "mean_wer": 0.5190476190476191,
+    "mean_cer": 0.4493354576974273,
+    "strategy_summary": {
+      "baseline": {
+        "row_count": 4,
+        "mean_wer": 0.034523809523809526,
+        "mean_cer": 0.02082186754723904
+      },
+      "uniform": {
+        "row_count": 4,
+        "mean_wer": 0.5226190476190476,
+        "mean_cer": 0.32718450554504264
+      },
+      "patch": {
+        "row_count": 4,
+        "mean_wer": 1.0,
+        "mean_cer": 1.0
+      }
+    }
+  },
+  "notes": [
+    "First real-speech Modal EnCodec+ASR benchmark.",
+    "Uses a tiny 4-clip slice from LibriSpeech dev-clean, so this is still a smoke benchmark, not a statistically meaningful final result.",
+    "Baseline EnCodec reconstruction preserved ASR well on this slice.",
+    "Uniform frame dropping reduced tokens by about 50% but substantially damaged ASR.",
+    "Patch averaging over codec IDs collapsed ASR on this slice, confirming it is a failure baseline rather than a quality-preserving method."
+  ]
+}

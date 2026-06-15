@@ -12,6 +12,7 @@ from audiotokenlab.asr_eval import summarize_asr
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
+from audiotokenlab.librispeech import parse_librispeech_transcripts
 from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.reporting import summarize_by_strategy
@@ -82,6 +83,15 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(clips[0].clip_id, "clip_a")
         self.assertEqual(clips[0].metadata["transcript"], "hello audio tokens")
+
+    def test_librispeech_transcript_parser(self) -> None:
+        parsed = parse_librispeech_transcripts(
+            "1272-128104-0000 A CHAPTER TITLE\n"
+            "1272-128104-0001 THE QUICK BROWN FOX\n"
+        )
+
+        self.assertEqual(parsed["1272-128104-0000"], "A CHAPTER TITLE")
+        self.assertEqual(parsed["1272-128104-0001"], "THE QUICK BROWN FOX")
 
     def test_compression_reduces_tokens(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
