@@ -264,6 +264,10 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 PYTHONPATH=src python3 -m unittest discover tests
 ```
 
+---
+
 ## License
 
-MIT. Dataset and model licenses remain governed by their upstream providers.
+This project is released under the [MIT License](LICENSE).
+
+Dataset and model licenses remain governed by their upstream providers.
