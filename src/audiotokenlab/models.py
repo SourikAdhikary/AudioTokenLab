@@ -94,6 +94,8 @@ class MetricRow:
     estimated_kv_cache_mb: float
     estimated_kv_cache_savings_mb: float
     reconstruction_mse: float
+    reconstruction_mae: float
+    reconstruction_snr_db: float
     duration_drift_ms: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -112,6 +114,7 @@ class MetricRow:
             "estimated_kv_cache_mb": self.estimated_kv_cache_mb,
             "estimated_kv_cache_savings_mb": self.estimated_kv_cache_savings_mb,
             "reconstruction_mse": self.reconstruction_mse,
+            "reconstruction_mae": self.reconstruction_mae,
+            "reconstruction_snr_db": self.reconstruction_snr_db,
             "duration_drift_ms": self.duration_drift_ms,
         }
-

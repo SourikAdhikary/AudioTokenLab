@@ -14,9 +14,17 @@ def run_profile(config_path: str) -> list[MetricRow]:
     tokenizer = build_tokenizer(config.tokenizer)
 
     rows: list[MetricRow] = []
+    sample_dir = config.output_dir / "samples"
     for clip in clips:
-        rows.extend(profile_clip(clip, tokenizer, config.strategies, config.kv_cache))
+        rows.extend(
+            profile_clip(
+                clip,
+                tokenizer,
+                config.strategies,
+                config.kv_cache,
+                sample_dir=sample_dir,
+            )
+        )
 
     write_run_artifacts(config, rows)
     return rows
-

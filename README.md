@@ -69,6 +69,7 @@ For each audio workload, AudioTokenLab will report:
 - ASR WER/CER before and after compression
 - speaker similarity before and after compression
 - reconstruction quality proxies
+- MAE and SNR signal metrics
 - failure cases where compression visibly breaks the audio
 
 The goal is not to hide tradeoffs. The goal is to make them obvious.
@@ -153,6 +154,13 @@ audiotokenlab profile --config experiments/configs/quiet_demo.json
 audiotokenlab report runs/quiet_demo
 ```
 
+Run the first real audio quantizer baseline:
+
+```bash
+audiotokenlab profile --config experiments/configs/mulaw_demo.json
+audiotokenlab report runs/mulaw_demo
+```
+
 Expected artifacts:
 
 ```text
@@ -161,13 +169,15 @@ runs/demo/
   metrics.csv
   dashboard.html
   samples/
-  logs.txt
+    synthetic_000__baseline.wav
 ```
 
 ## Project Roadmap
 
 - [x] Local pipeline with a dummy tokenizer
 - [x] Quiet-segment synthetic workload for silence-aware compression
+- [x] Dependency-free mu-law audio tokenizer baseline
+- [x] Reconstructed WAV sample artifacts
 - [ ] Real neural codec backend
 - [x] Token profiling and KV-cache estimation
 - [x] Baseline compression strategies

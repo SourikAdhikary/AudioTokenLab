@@ -33,6 +33,7 @@ def write_manifest(path: Path, config: ProfileConfig, rows: list[MetricRow]) -> 
         "strategies": sorted({row.strategy for row in rows}),
         "clip_count": len({row.clip_id for row in rows}),
         "output_dir": str(config.output_dir),
+        "sample_dir": str(config.output_dir / "samples"),
         "summary": summarize(rows),
         "strategy_summary": summarize_by_strategy(rows),
     }
@@ -76,6 +77,7 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
     {_summary_card("Mean Token Reduction", f'{summary["mean_token_reduction_ratio"]:.2%}')}
     {_summary_card("Mean KV Savings", f'{summary["mean_kv_cache_savings_mb"]:.2f} MB')}
     {_summary_card("Mean MSE", f'{summary["mean_reconstruction_mse"]:.5f}')}
+    {_summary_card("Mean SNR", f'{summary["mean_reconstruction_snr_db"]:.2f} dB')}
   </section>
   <h2>Strategy Summary</h2>
   <table>
@@ -86,6 +88,7 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
         <th>Mean Reduction</th>
         <th>Mean KV Savings MB</th>
         <th>Mean MSE</th>
+        <th>Mean SNR</th>
         <th>Mean RTF</th>
       </tr>
     </thead>
@@ -105,6 +108,7 @@ def write_dashboard(path: Path, config: ProfileConfig, rows: list[MetricRow]) ->
         <th>KV Cache MB</th>
         <th>KV Savings MB</th>
         <th>MSE</th>
+        <th>SNR dB</th>
         <th>RTF</th>
       </tr>
     </thead>
@@ -127,6 +131,7 @@ def summarize(rows: list[MetricRow]) -> dict:
             "mean_token_reduction_ratio": 0.0,
             "mean_kv_cache_savings_mb": 0.0,
             "mean_reconstruction_mse": 0.0,
+            "mean_reconstruction_snr_db": 0.0,
         }
     return {
         "row_count": len(rows),
@@ -136,6 +141,8 @@ def summarize(rows: list[MetricRow]) -> dict:
         "mean_kv_cache_savings_mb": sum(row.estimated_kv_cache_savings_mb for row in rows)
         / len(rows),
         "mean_reconstruction_mse": sum(row.reconstruction_mse for row in rows) / len(rows),
+        "mean_reconstruction_snr_db": sum(row.reconstruction_snr_db for row in rows)
+        / len(rows),
     }
 
 
@@ -161,6 +168,10 @@ def summarize_by_strategy(rows: list[MetricRow]) -> dict[str, dict]:
                 row.reconstruction_mse for row in strategy_rows
             )
             / len(strategy_rows),
+            "mean_reconstruction_snr_db": sum(
+                row.reconstruction_snr_db for row in strategy_rows
+            )
+            / len(strategy_rows),
             "mean_real_time_factor": sum(row.real_time_factor for row in strategy_rows)
             / len(strategy_rows),
         }
@@ -184,6 +195,7 @@ def _html_strategy_row(strategy: str, values: dict) -> str:
         f"<td>{values['mean_token_reduction_ratio']:.2%}</td>"
         f"<td>{values['mean_kv_cache_savings_mb']:.2f}</td>"
         f"<td>{values['mean_reconstruction_mse']:.5f}</td>"
+        f"<td>{values['mean_reconstruction_snr_db']:.2f}</td>"
         f"<td>{values['mean_real_time_factor']:.4f}</td>"
         "</tr>"
     )
@@ -200,6 +212,7 @@ def _html_row(row: MetricRow) -> str:
         f"<td>{row.estimated_kv_cache_mb:.2f}</td>"
         f"<td>{row.estimated_kv_cache_savings_mb:.2f}</td>"
         f"<td>{row.reconstruction_mse:.5f}</td>"
+        f"<td>{row.reconstruction_snr_db:.2f}</td>"
         f"<td>{row.real_time_factor:.4f}</td>"
         "</tr>"
     )

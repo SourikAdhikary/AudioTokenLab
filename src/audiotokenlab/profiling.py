@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import math
 import time
+from pathlib import Path
 
+from audiotokenlab.audio_io import write_wav
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.models import AudioClip, CompressionResult, MetricRow
 from audiotokenlab.tokenizers.base import AudioTokenizer
@@ -12,6 +15,7 @@ def profile_clip(
     tokenizer: AudioTokenizer,
     strategies: list[dict],
     kv_cache: dict,
+    sample_dir: Path | None = None,
 ) -> list[MetricRow]:
     encode_start = time.perf_counter()
     original = tokenizer.encode(clip)
@@ -30,6 +34,12 @@ def profile_clip(
             reconstructed=reconstructed,
             metadata=dict(strategy),
         )
+        if sample_dir is not None:
+            write_wav(
+                sample_dir / f"{clip.clip_id}__{result.strategy}.wav",
+                reconstructed,
+                clip.sample_rate,
+            )
         rows.append(
             build_metric_row(
                 clip=clip,
@@ -67,6 +77,8 @@ def build_metric_row(
         estimated_kv_cache_mb=compressed_kv_mb,
         estimated_kv_cache_savings_mb=original_kv_mb - compressed_kv_mb,
         reconstruction_mse=mean_squared_error(clip.samples, result.reconstructed),
+        reconstruction_mae=mean_absolute_error(clip.samples, result.reconstructed),
+        reconstruction_snr_db=signal_to_noise_db(clip.samples, result.reconstructed),
         duration_drift_ms=abs(len(result.reconstructed) - len(clip.samples))
         / max(1, clip.sample_rate)
         * 1000.0,
@@ -91,3 +103,31 @@ def mean_squared_error(left: tuple[float, ...], right: tuple[float, ...]) -> flo
         total += diff * diff
     return total / count
 
+
+def mean_absolute_error(left: tuple[float, ...], right: tuple[float, ...]) -> float:
+    count = min(len(left), len(right))
+    if count == 0:
+        return 0.0
+    total = 0.0
+    for index in range(count):
+        total += abs(left[index] - right[index])
+    return total / count
+
+
+def signal_to_noise_db(left: tuple[float, ...], right: tuple[float, ...]) -> float:
+    count = min(len(left), len(right))
+    if count == 0:
+        return 0.0
+
+    signal_power = 0.0
+    noise_power = 0.0
+    for index in range(count):
+        signal_power += left[index] * left[index]
+        diff = left[index] - right[index]
+        noise_power += diff * diff
+
+    if noise_power == 0.0:
+        return 99.0
+    if signal_power == 0.0:
+        return 0.0
+    return 10.0 * math.log10(signal_power / noise_power)

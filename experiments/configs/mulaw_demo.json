@@ -1,0 +1,29 @@
+{
+  "run_id": "mulaw_demo",
+  "output_dir": "../../runs/mulaw_demo",
+  "dataset": {
+    "type": "synthetic_quiet",
+    "count": 3,
+    "sample_rate": 16000,
+    "duration_seconds": 1.5,
+    "base_frequency": 220.0,
+    "speech_seconds": 0.22,
+    "quiet_seconds": 0.28
+  },
+  "tokenizer": {
+    "name": "mulaw",
+    "quantization_channels": 256,
+    "hop_size": 4
+  },
+  "strategies": [
+    { "name": "baseline" },
+    { "name": "uniform", "factor": 2 },
+    { "name": "silence_aware", "factor": 3, "threshold_low": 124, "threshold_high": 132 },
+    { "name": "patch", "patch_size": 4 }
+  ],
+  "kv_cache": {
+    "layers": 24,
+    "hidden_size": 1024,
+    "bytes_per_element": 2
+  }
+}

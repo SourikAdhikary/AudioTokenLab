@@ -13,7 +13,16 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
     if name == "silence_aware":
         factor = int(strategy.get("factor", 2))
         threshold = int(strategy.get("threshold", 8))
-        return _silence_aware(bundle, factor=factor, threshold=threshold, strategy=name)
+        threshold_low = strategy.get("threshold_low")
+        threshold_high = strategy.get("threshold_high")
+        return _silence_aware(
+            bundle,
+            factor=factor,
+            threshold=threshold,
+            threshold_low=int(threshold_low) if threshold_low is not None else None,
+            threshold_high=int(threshold_high) if threshold_high is not None else None,
+            strategy=name,
+        )
     if name == "patch":
         patch_size = int(strategy.get("patch_size", 4))
         return _patch(bundle, patch_size=patch_size, strategy=name)
@@ -45,6 +54,8 @@ def _silence_aware(
     bundle: TokenBundle,
     factor: int,
     threshold: int,
+    threshold_low: int | None,
+    threshold_high: int | None,
     strategy: str,
 ) -> TokenBundle:
     if factor <= 1:
@@ -53,7 +64,7 @@ def _silence_aware(
     kept: list[int] = []
     quiet_seen = 0
     for token in bundle.tokens:
-        if token <= threshold:
+        if _is_quiet_token(token, threshold, threshold_low, threshold_high):
             if quiet_seen % factor == 0:
                 kept.append(token)
             quiet_seen += 1
@@ -61,6 +72,17 @@ def _silence_aware(
             kept.append(token)
             quiet_seen = 0
     return _replace(bundle, tokens=tuple(kept), strategy=strategy)
+
+
+def _is_quiet_token(
+    token: int,
+    threshold: int,
+    threshold_low: int | None,
+    threshold_high: int | None,
+) -> bool:
+    if threshold_low is not None and threshold_high is not None:
+        return threshold_low <= token <= threshold_high
+    return token <= threshold
 
 
 def _patch(bundle: TokenBundle, patch_size: int, strategy: str) -> TokenBundle:
@@ -73,4 +95,3 @@ def _patch(bundle: TokenBundle, patch_size: int, strategy: str) -> TokenBundle:
         if patch:
             patched.append(round(sum(patch) / len(patch)))
     return _replace(bundle, tokens=tuple(patched), strategy=strategy)
-

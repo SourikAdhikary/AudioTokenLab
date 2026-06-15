@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,6 +33,25 @@ class PipelineTest(unittest.TestCase):
         self.assertGreater(bundle.token_count, 0)
         self.assertEqual(len(decoded), len(clips[0].samples))
 
+    def test_mulaw_tokenizer_round_trip(self) -> None:
+        clip = load_dataset(
+            {
+                "type": "synthetic",
+                "count": 1,
+                "sample_rate": 8000,
+                "duration_seconds": 0.25,
+            }
+        )[0]
+        tokenizer = build_tokenizer(
+            {"name": "mulaw", "quantization_channels": 256, "hop_size": 2}
+        )
+        bundle = tokenizer.encode(clip)
+        decoded = tokenizer.decode(bundle)
+
+        self.assertEqual(bundle.tokenizer, "mulaw")
+        self.assertGreater(bundle.token_count, 0)
+        self.assertEqual(len(decoded), len(clip.samples))
+
     def test_compression_reduces_tokens(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
         tokenizer = build_tokenizer({"name": "dummy", "frame_size": 160})
@@ -60,6 +80,33 @@ class PipelineTest(unittest.TestCase):
 
         self.assertLess(compressed.token_count, bundle.token_count)
 
+    def test_silence_aware_supports_center_coded_quiet_tokens(self) -> None:
+        clip = load_dataset(
+            {
+                "type": "synthetic_quiet",
+                "count": 1,
+                "sample_rate": 8000,
+                "duration_seconds": 1.0,
+                "speech_seconds": 0.15,
+                "quiet_seconds": 0.35,
+            }
+        )[0]
+        tokenizer = build_tokenizer(
+            {"name": "mulaw", "quantization_channels": 256, "hop_size": 4}
+        )
+        bundle = tokenizer.encode(clip)
+        compressed = compress_tokens(
+            bundle,
+            {
+                "name": "silence_aware",
+                "factor": 3,
+                "threshold_low": 124,
+                "threshold_high": 132,
+            },
+        )
+
+        self.assertLess(compressed.token_count, bundle.token_count)
+
     def test_profile_clip_emits_metric_rows(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
         tokenizer = build_tokenizer({"name": "dummy"})
@@ -73,6 +120,7 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0].strategy, "baseline")
         self.assertGreaterEqual(rows[1].token_reduction_ratio, 0.0)
+        self.assertTrue(math.isfinite(rows[0].reconstruction_snr_db))
 
     def test_strategy_summary_groups_rows(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
@@ -135,6 +183,7 @@ class PipelineTest(unittest.TestCase):
             self.assertTrue((output_dir / "manifest.json").exists())
             self.assertTrue((output_dir / "metrics.csv").exists())
             self.assertTrue((output_dir / "dashboard.html").exists())
+            self.assertTrue((output_dir / "samples" / "synthetic_000__baseline.wav").exists())
 
 
 if __name__ == "__main__":
