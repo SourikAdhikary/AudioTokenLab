@@ -169,6 +169,15 @@ audiotokenlab profile --config experiments/configs/encodec_demo.json
 audiotokenlab report runs/encodec_demo
 ```
 
+Run the EnCodec benchmark on Modal:
+
+```bash
+python3 -m pip install -e '.[modal]'
+modal run modal_app.py
+```
+
+Modal artifacts are written locally under `modal-runs/` by the local entrypoint.
+
 Expected artifacts:
 
 ```text

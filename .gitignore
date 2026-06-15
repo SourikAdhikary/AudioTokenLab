@@ -2,6 +2,7 @@ docs/
 runs/
 outputs/
 artifacts/
+modal-runs/
 .cache/
 .venv/
 __pycache__/
