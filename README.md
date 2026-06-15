@@ -1,168 +1,139 @@
 # AudioTokenLab
 
-**A benchmark lab for the token economics of audio language models.**
+**Audio-token compression benchmarks for speech and voice-model infrastructure.**
 
-Modern speech and audio systems increasingly work like language models. They turn waveform audio into discrete codec tokens, run transformer-style models over those tokens, and decode the result back into sound.
+AudioTokenLab measures how much discrete audio-token streams can be compressed before speech quality breaks. It is built around the practical serving question behind audio LMs, voice agents, speech-to-speech systems, and TTS:
 
-That design unlocked impressive TTS, speech-to-speech, music generation, dubbing, and voice-agent systems. It also created a new infrastructure problem:
+> Can we reduce audio-token memory and latency without destroying intelligibility or speaker identity?
 
-> Audio tokens are expensive.
+The current benchmark uses EnCodec 24 kHz tokens, reconstructs compressed audio, and evaluates the result with ASR WER/CER, SpeechBrain speaker similarity, reconstruction metrics, and KV-cache estimates.
 
-Audio streams are much denser than text. A short spoken sentence can become hundreds or thousands of codec tokens. For autoregressive audio models, those tokens drive prefill cost, decode latency, KV-cache memory, GPU utilization, and time-to-first-audio.
+## Current Result
 
-AudioTokenLab is a systems project for measuring that cost and testing how far audio-token streams can be compressed before quality breaks.
-
-## The Problem
-
-Text model infra has a mature vocabulary:
-
-- tokens per request
-- prefill latency
-- decode throughput
-- KV-cache memory
-- batching efficiency
-- cost per million tokens
-
-Audio model infra needs the same rigor, but the units are messier.
-
-Audio tokens carry phonetics, speaker identity, rhythm, noise, prosody, and acoustic detail. Reducing token count may save memory and latency, but it can also damage:
-
-- intelligibility
-- speaker similarity
-- timing
-- emotion and prosody
-- downstream ASR accuracy
-- reconstruction quality
-
-AudioTokenLab asks a concrete question:
-
-> Given an audio tokenizer and workload, what is the best quality/cost tradeoff we can get from token compression?
-
-## What This Project Will Build
-
-AudioTokenLab is planned as a reproducible profiling and compression pipeline:
+The latest run is a 100-clip LibriSpeech `dev-clean` benchmark on Modal L4:
 
 ```text
-audio dataset
-  -> neural codec tokenizer
-  -> token profiler
-  -> compression strategy
-  -> reconstruction
-  -> quality evaluation
-  -> cost and latency report
+Dataset: LibriSpeech dev-clean
+Clips: 100
+Speakers: 40
+Chapters: 97
+Tokenizer: EnCodec 24 kHz, 6 kbps target bandwidth
+ASR evaluator: faster-whisper tiny.en
+Speaker evaluator: SpeechBrain ECAPA
 ```
 
-The first version will focus on speech because speech gives measurable automatic signals: transcript preservation, character/word error rate, speaker similarity, duration drift, and reconstruction quality.
+| Strategy | Token Reduction | Mean WER | WER 95% CI | Speaker Sim | KV Savings |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `baseline` | 0.00% | 9.39% | 6.83%-12.40% | 1.000 | 0.00 MB |
+| `uniform` | 49.94% | 36.72% | 31.09%-43.30% | 0.527 | 230.17 MB |
+| `acoustic_salience` | 49.94% | 14.77% | 11.75%-18.13% | 0.824 | 230.17 MB |
+| `energy_tuned_e4_t1_o2` | 49.94% | 14.98% | 12.24%-18.20% | 0.831 | 230.17 MB |
+| `patch` | 74.91% | 99.72% | 99.29%-100.00% | 0.019 | 345.27 MB |
+
+The important comparison is not baseline vs compressed audio. It is **uniform dropping vs salience-based dropping at the same token budget**:
+
+- Uniform 2x frame dropping gets roughly 50% token reduction, but WER jumps to 36.72%.
+- Acoustic salience keeps the same roughly 50% token reduction, but WER is 14.77%.
+- The tuned energy variant has similar WER at 14.98% and the best compressed speaker similarity at 0.831.
+
+See the full report: [REPORT.md](REPORT.md)
+
+## Result Artifacts
+
+Tracked, repo-visible artifacts:
+
+- [100-clip result summary JSON](experiments/results/encodec_librispeech_asr_modal_2026-06-15.json)
+- [100-clip summary chart](experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg)
+- [listening examples](experiments/results/encodec_librispeech_asr_100clip_listening_examples.md)
+- [committed example WAVs](experiments/results/listening_examples/)
+
+Generated full run artifacts are intentionally ignored from git and written under `modal-runs/`.
 
 ## What It Measures
 
-For each audio workload, AudioTokenLab will report:
+AudioTokenLab reports:
 
-- audio duration and sample rate
-- codec tokens per second
-- codebook and frame statistics
-- encode/decode runtime
-- real-time factor
-- estimated KV-cache footprint
-- estimated transformer serving cost
-- compression ratio
-- ASR WER/CER before and after compression
-- speaker similarity before and after compression
-- reconstruction quality proxies
-- MAE and SNR signal metrics
-- failure cases where compression visibly breaks the audio
+- token count and token reduction
+- estimated transformer KV-cache footprint and savings
+- encode/decode runtime and real-time factor
+- reconstruction MSE, MAE, SNR, and duration drift
+- downstream ASR WER/CER with bootstrap confidence intervals
+- speaker similarity against baseline reconstruction
+- failure cases with transcript and audio examples
 
-The goal is not to hide tradeoffs. The goal is to make them obvious.
+The goal is to make tradeoffs obvious: memory savings are only useful if the resulting audio remains intelligible and voice-preserving.
 
-## Compression Experiments
-
-Initial strategies:
-
-- **Baseline**: no compression
-- **Uniform compression**: simple fixed-rate token reduction
-- **Silence-aware compression**: compress low-information regions more aggressively
-- **Patch compression**: group consecutive codec tokens into larger units
-- **Acoustic salience compression**: keep RVQ frames with the strongest local token transitions, then repeat-fill the decode timeline
-- **Energy salience compression**: combine RVQ-token transitions with frame-energy/onset cues before repeat-filling the decode timeline
-
-The project starts with simple, inspectable baselines before introducing learned compression. That keeps the benchmark honest and makes every improvement easier to interpret.
-
-## Why This Matters
-
-Audio-token compression is becoming relevant across several active areas:
-
-- real-time TTS
-- speech-to-speech models
-- voice agents
-- long-form meeting and call understanding
-- multilingual dubbing
-- audio generation
-- music generation
-- video generation with synchronized audio
-- edge and wearable voice interfaces
-
-If audio models continue to scale like language models, token length becomes an infra problem. Better profiling and compression can reduce serving cost, improve latency, and make longer audio contexts practical.
-
-## Research Context
-
-AudioTokenLab is motivated by recent work on efficient audio-token modeling and long-form speech systems:
-
-- [TLDR: Compressing Audio Tokens for Efficient Autoregressive Text-to-Speech](https://arxiv.org/abs/2606.09019) explores patch-level codec-token modeling for faster AR-TTS and lower KV-cache usage.
-- [Speech-XL](https://arxiv.org/abs/2602.05373) studies long-form speech understanding using speech summarization tokens and KV sparsification.
-- [LLM-Codec](https://arxiv.org/abs/2604.17852) argues that reconstruction-oriented audio codecs are not necessarily ideal tokenizers for language-model objectives.
-- [Ultra-Low Latency Streaming Speech Synthesis via Block-Wise Generation](https://arxiv.org/abs/2604.12438) shows how codec-space design affects streaming TTS latency.
-- [Building Enterprise Realtime Voice Agents from Scratch](https://arxiv.org/abs/2603.05413) highlights why production voice systems are dominated by streaming, pipelining, and latency constraints.
-
-AudioTokenLab is not trying to reproduce those systems end to end. It is building the measurement layer around the bottleneck they expose.
-
-## Example Output
-
-A completed run should produce a report like:
+## How It Works
 
 ```text
-Tokenizer: encodec_24khz
-Dataset: demo_speech_30
-
-Strategy          Token Reduction   WER Delta   Speaker Sim   Est. KV Savings
-baseline          0.0%              0.0         1.00          0.0%
-uniform_2x        50.0%             +8.4        0.82          50.0%
-silence_aware     31.2%             +1.7        0.94          31.2%
-patch_4           58.5%             +3.1        0.91          58.5%
-adaptive_patch    47.8%             +1.2        0.95          47.8%
+audio dataset
+  -> audio tokenizer
+  -> compression strategy
+  -> reconstruction
+  -> ASR + speaker + signal evaluation
+  -> CSV / JSON / HTML / chart artifacts
 ```
 
-Numbers above are illustrative. The project will only claim results backed by generated artifacts.
+The main neural-codec benchmark uses EnCodec. The repo also includes dependency-light dummy and mu-law tokenizers for fast local tests.
 
-## Planned CLI
+## Compression Strategies
 
-Install locally in editable mode:
+| Strategy | Description |
+| --- | --- |
+| `baseline` | No compression. |
+| `uniform` | Keep every Nth EnCodec frame. Simple and cheap, but destructive. |
+| `acoustic_salience` | Keep the frame with the strongest local RVQ-token transition inside each window, then repeat-fill the decode timeline. |
+| `energy_salience` | Combine token-transition score with frame-energy/onset cues. |
+| `energy_tuned_e4_t1_o2` | Tuned energy-salience variant from the 100-clip run. |
+| `patch` | Average codec IDs across frame windows. Kept as a failure baseline because arithmetic over discrete codec IDs is not meaningful. |
+
+## Installation
+
+Create a local editable install:
 
 ```bash
 python3 -m pip install -e .
 ```
 
-Run the dependency-free demo profile:
+Optional extras:
+
+```bash
+python3 -m pip install -e '.[encodec]'
+python3 -m pip install -e '.[modal]'
+python3 -m pip install -e '.[asr]'
+python3 -m pip install -e '.[speaker]'
+```
+
+For the full Modal benchmark, you need Modal configured:
+
+```bash
+modal setup
+```
+
+## Local Usage
+
+Dependency-free demo:
 
 ```bash
 audiotokenlab profile --config experiments/configs/demo.json
 audiotokenlab report runs/demo
 ```
 
-Run a quiet-segment workload that exercises silence-aware compression:
+Quiet-segment workload:
 
 ```bash
 audiotokenlab profile --config experiments/configs/quiet_demo.json
 audiotokenlab report runs/quiet_demo
 ```
 
-Run the first real audio quantizer baseline:
+Mu-law tokenizer baseline:
 
 ```bash
 audiotokenlab profile --config experiments/configs/mulaw_demo.json
 audiotokenlab report runs/mulaw_demo
 ```
 
-Run the optional EnCodec backend after installing the extra dependencies:
+Optional EnCodec local run:
 
 ```bash
 python3 -m pip install -e '.[encodec]'
@@ -170,99 +141,117 @@ audiotokenlab profile --config experiments/configs/encodec_demo.json
 audiotokenlab report runs/encodec_demo
 ```
 
-Run the EnCodec benchmark on Modal:
+## Modal Benchmarks
+
+Small EnCodec smoke run:
 
 ```bash
-python3 -m pip install -e '.[modal]'
 modal run modal_app.py
 ```
 
-Modal artifacts are written locally under `modal-runs/` by the local entrypoint.
-
-Run the Modal speech+ASR smoke benchmark:
+Synthetic speech plus ASR smoke run:
 
 ```bash
 modal run modal_app.py --speech-asr
 ```
 
-This synthesizes two tiny speech clips with `espeak-ng`, runs EnCodec compression, transcribes reconstructed samples with `faster-whisper`, and writes `asr_metrics.csv` plus `asr_summary.json`.
-
-Run the real-speech LibriSpeech ASR benchmark:
+Full tuned LibriSpeech benchmark:
 
 ```bash
-modal run modal_app.py --librispeech-asr --max-clips 24
+modal run modal_app.py --librispeech-asr --max-clips 100 --strategy-set tuned
 ```
 
-This downloads a tiny slice from LibriSpeech `dev-clean` on Modal, converts selected FLAC clips to 24 kHz WAV, runs EnCodec compression, and evaluates reconstructed samples with `faster-whisper`.
+This downloads LibriSpeech `dev-clean` on Modal, selects clips across speakers/chapters, converts FLAC to 24 kHz mono WAV, runs EnCodec compression/reconstruction, evaluates ASR, computes speaker similarity, and writes local artifacts under `modal-runs/encodec_librispeech_asr/`.
 
-Current real-speech Modal result:
-
-```text
-Dataset: LibriSpeech dev-clean, 100 clips, 40 speakers, 97 chapters
-Baseline WER: 9.39%
-Uniform WER: 36.72% at ~49.94% token reduction
-Acoustic salience WER: 14.77% at ~49.94% token reduction
-Best tuned energy WER: 14.98% at ~49.94% token reduction
-Patch WER: 99.72% at ~74.91% token reduction
-```
-
-See [REPORT.md](REPORT.md) for the current public benchmark report, including 95% confidence intervals, SpeechBrain speaker-similarity results, a tracked summary chart, and listening examples.
-
-Tracked result artifacts:
-
-- [100-clip summary chart](experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg)
-- [100-clip listening examples](experiments/results/encodec_librispeech_asr_100clip_listening_examples.md)
-- [committed example WAVs](experiments/results/listening_examples/)
-
-Expected artifacts:
+Expected full-run artifacts:
 
 ```text
-runs/demo/
+modal-runs/encodec_librispeech_asr/
   manifest.json
   metrics.csv
   dashboard.html
+  asr_metrics.csv
+  asr_summary.json
+  speaker_metrics.csv
+  speaker_summary.json
+  publication_summary.json
+  summary_chart.svg
+  listening_examples.md
   samples/
-    synthetic_000__baseline.wav
+    *.wav
 ```
 
-## Project Roadmap
+## Repository Layout
 
-- [x] Local pipeline with a dummy tokenizer
-- [x] Quiet-segment synthetic workload for silence-aware compression
-- [x] Dependency-free mu-law audio tokenizer baseline
-- [x] Reconstructed WAV sample artifacts
-- [x] Optional EnCodec backend adapter
-- [x] Verified EnCodec benchmark run
-- [x] Token profiling and KV-cache estimation
-- [x] Baseline compression strategies
-- [x] Speech reconstruction evaluation
-- [x] ASR-based WER/CER regression checks
-- [x] Acoustic salience sparse-frame baseline
-- [x] Energy/VAD-style salience baseline
-- [x] 24-clip LibriSpeech ASR ablation
-- [x] 100-clip LibriSpeech tuned ablation
-- [x] Shareable result chart and listening-example manifest
-- [x] Public benchmark report
-- [x] Speaker similarity checks
-- [x] HTML dashboard
-- [x] Modal GPU benchmark run
-- [x] ASR-based WER/CER smoke run
-- [x] Real-speech LibriSpeech smoke run
-- [ ] Public benchmark report
+```text
+src/audiotokenlab/
+  compression.py          compression strategies
+  profiling.py            per-clip benchmark metrics
+  asr_eval.py             WER/CER evaluation and bootstrap CIs
+  speaker_eval.py         SpeechBrain speaker-similarity evaluation
+  publication.py          chart and listening-example artifacts
+  reporting.py            CSV/JSON/HTML reporting
+  tokenizers/             dummy, mu-law, and EnCodec tokenizer adapters
 
-## Design Principles
+experiments/
+  configs/                local run configs
+  results/                tracked benchmark summaries and public artifacts
 
-- **Measure first**: compression without metrics is guesswork.
-- **Keep baselines simple**: naive methods reveal what the hard part actually is.
-- **Report failures**: bad reconstructions and WER spikes are part of the result.
-- **Avoid fake SOTA claims**: project claims must come from reproducible runs.
-- **Optimize for systems insight**: the main output is understanding latency, memory, cost, and quality tradeoffs.
+modal_app.py              Modal GPU benchmark entrypoint
+REPORT.md                 current benchmark report
+```
 
-## Status
+## Why This Matters
 
-AudioTokenLab is in early development. The current scaffold includes a dependency-free profiling pipeline with a dummy tokenizer, compression baselines, KV-cache estimates, CSV/JSON/HTML report artifacts, and unit tests.
+Audio models pay for long audio contexts in tokens, just like text models do. Codec-token streams can be dense, and in autoregressive or transformer-style audio systems they affect:
 
-Run tests:
+- prefill latency
+- decode latency
+- KV-cache memory
+- batching efficiency
+- serving cost
+- time-to-first-audio
+
+Naively dropping audio tokens saves memory but can erase phonetics, timing, speaker identity, and prosody. AudioTokenLab is a measurement harness for finding better quality/cost tradeoffs.
+
+## Research Context
+
+AudioTokenLab is motivated by recent work on efficient audio-token modeling and long-form speech systems:
+
+- [TLDR: Compressing Audio Tokens for Efficient Autoregressive Text-to-Speech](https://arxiv.org/abs/2606.09019)
+- [Speech-XL](https://arxiv.org/abs/2602.05373)
+- [LLM-Codec](https://arxiv.org/abs/2604.17852)
+- [Ultra-Low Latency Streaming Speech Synthesis via Block-Wise Generation](https://arxiv.org/abs/2604.12438)
+- [Building Enterprise Realtime Voice Agents from Scratch](https://arxiv.org/abs/2603.05413)
+
+This repo is not trying to reproduce those systems end to end. It builds the measurement layer around the bottleneck they expose: audio-token cost.
+
+## Current Limitations
+
+- The main benchmark uses LibriSpeech `dev-clean`; broader datasets are still needed.
+- ASR uses `faster-whisper tiny.en`, which is a practical evaluator but not an oracle for speech quality.
+- Speaker similarity uses one pretrained embedding model.
+- The current salience policies are heuristic, not learned token selectors.
+- KV-cache savings are architecture estimates, not measurements from a deployed audio transformer.
+
+## Roadmap
+
+- [x] Local profiling pipeline
+- [x] Dummy and mu-law tokenizer baselines
+- [x] Optional EnCodec backend
+- [x] Modal GPU benchmark path
+- [x] LibriSpeech real-speech benchmark
+- [x] ASR WER/CER with bootstrap confidence intervals
+- [x] SpeechBrain speaker similarity
+- [x] Salience-based compression baselines
+- [x] Energy-salience tuning run
+- [x] Public report, chart, and listening examples
+- [ ] Broader datasets beyond LibriSpeech
+- [ ] Stronger VAD or learned token selector
+- [ ] Subjective listening study
+- [ ] Integration with a real audio-token transformer serving stack
+
+## Tests
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover tests
