@@ -1,5 +1,12 @@
 # AudioTokenLab
 
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Benchmark: Modal L4](https://img.shields.io/badge/benchmark-Modal%20L4-7c3aed)](REPORT.md)
+[![Tokenizer: EnCodec](https://img.shields.io/badge/tokenizer-EnCodec-orange)](https://github.com/facebookresearch/encodec)
+[![Dataset: LibriSpeech](https://img.shields.io/badge/dataset-LibriSpeech-blue)](https://www.openslr.org/12/)
+[![Run: 100 clips](https://img.shields.io/badge/run-100%20clips%20%7C%20800%20samples-111827)](experiments/results/encodec_librispeech_asr_modal_2026-06-15.json)
+
 **Audio-token compression benchmarks for speech and voice-model infrastructure.**
 
 AudioTokenLab measures how much discrete audio-token streams can be compressed before speech quality breaks. It is built around the practical serving question behind audio LMs, voice agents, speech-to-speech systems, and TTS:
