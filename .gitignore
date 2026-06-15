@@ -1,0 +1,9 @@
+docs/
+runs/
+outputs/
+artifacts/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
