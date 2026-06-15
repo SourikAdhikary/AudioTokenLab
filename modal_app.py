@@ -111,6 +111,7 @@ def run_speech_asr_profile() -> dict:
                 "strategies": [
                     {"name": "baseline"},
                     {"name": "uniform", "factor": 2},
+                    {"name": "acoustic_salience", "factor": 2},
                     {"name": "patch", "patch_size": 4},
                 ],
                 "kv_cache": {
@@ -183,6 +184,7 @@ def run_librispeech_asr_profile(max_clips: int = 4) -> dict:
                 "strategies": [
                     {"name": "baseline"},
                     {"name": "uniform", "factor": 2},
+                    {"name": "acoustic_salience", "factor": 2},
                     {"name": "patch", "patch_size": 4},
                 ],
                 "kv_cache": {

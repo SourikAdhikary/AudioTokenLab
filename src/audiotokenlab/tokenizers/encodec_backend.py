@@ -92,9 +92,10 @@ class EncodecTokenizer(AudioTokenizer):
         if len(bundle.tokens) % bundle.codebook_count != 0:
             raise ValueError("Token count must be divisible by codebook_count")
 
-        frame_count = len(bundle.tokens) // bundle.codebook_count
+        tokens = _expanded_decode_tokens(bundle)
+        frame_count = len(tokens) // bundle.codebook_count
         codes = self._torch.tensor(
-            bundle.tokens,
+            tokens,
             dtype=self._torch.long,
             device=self.device,
         ).view(1, frame_count, bundle.codebook_count)
@@ -125,3 +126,23 @@ def _import_required(module_name: str) -> Any:
             "EnCodec support requires optional dependencies. "
             "Install with `python3 -m pip install -e '.[encodec]'`."
         ) from exc
+
+
+def _expanded_decode_tokens(bundle: TokenBundle) -> tuple[int, ...]:
+    repeat_counts = bundle.metadata.get("decode_repeat_counts")
+    if not repeat_counts:
+        return bundle.tokens
+
+    frame_count = len(bundle.tokens) // bundle.codebook_count
+    if len(repeat_counts) != frame_count:
+        raise ValueError("decode_repeat_counts must match compressed frame count")
+
+    expanded: list[int] = []
+    for frame_index, repeat_count in enumerate(repeat_counts):
+        if int(repeat_count) < 1:
+            raise ValueError("decode_repeat_counts entries must be positive")
+        start = frame_index * bundle.codebook_count
+        frame = bundle.tokens[start : start + bundle.codebook_count]
+        for _ in range(int(repeat_count)):
+            expanded.extend(frame)
+    return tuple(expanded)

@@ -26,12 +26,22 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
     if name == "patch":
         patch_size = int(strategy.get("patch_size", 4))
         return _patch(bundle, patch_size=patch_size, strategy=name)
+    if name == "acoustic_salience":
+        factor = int(strategy.get("factor", 2))
+        return _acoustic_salience(bundle, factor=factor, strategy=name)
     raise ValueError(f"Unsupported compression strategy: {name}")
 
 
-def _replace(bundle: TokenBundle, tokens: tuple[int, ...], strategy: str) -> TokenBundle:
+def _replace(
+    bundle: TokenBundle,
+    tokens: tuple[int, ...],
+    strategy: str,
+    extra_metadata: dict | None = None,
+) -> TokenBundle:
     metadata = dict(bundle.metadata)
     metadata["compression_strategy"] = strategy
+    if extra_metadata:
+        metadata.update(extra_metadata)
     if _uses_frame_groups(bundle):
         metadata["frame_count"] = len(tokens) // bundle.codebook_count
     return TokenBundle(
@@ -136,6 +146,67 @@ def _patch(bundle: TokenBundle, patch_size: int, strategy: str) -> TokenBundle:
         if patch:
             patched.append(round(sum(patch) / len(patch)))
     return _replace(bundle, tokens=tuple(patched), strategy=strategy)
+
+
+def _acoustic_salience(bundle: TokenBundle, factor: int, strategy: str) -> TokenBundle:
+    if factor <= 1:
+        return _replace(bundle, tokens=bundle.tokens, strategy=strategy)
+    if not _uses_frame_groups(bundle):
+        return _replace(bundle, tokens=tuple(bundle.tokens[::factor]), strategy=strategy)
+
+    frames = _frame_groups(bundle)
+    if not frames:
+        return _replace(bundle, tokens=(), strategy=strategy)
+
+    kept_frames: list[tuple[int, ...]] = []
+    repeat_counts: list[int] = []
+    for start in range(0, len(frames), factor):
+        window = frames[start : start + factor]
+        best_offset = _highest_salience_offset(frames, start, len(window))
+        kept_frames.append(window[best_offset])
+        repeat_counts.append(len(window))
+
+    return _replace(
+        bundle,
+        tokens=_flatten_frames(kept_frames),
+        strategy=strategy,
+        extra_metadata={
+            "decode_repeat_counts": repeat_counts,
+            "decode_frame_count": len(frames),
+            "salience_factor": factor,
+        },
+    )
+
+
+def _highest_salience_offset(
+    frames: list[tuple[int, ...]],
+    start: int,
+    window_size: int,
+) -> int:
+    best_offset = 0
+    best_score = -1.0
+    for offset in range(window_size):
+        frame_index = start + offset
+        previous_frame = frames[frame_index - 1] if frame_index > 0 else frames[frame_index]
+        score = _frame_transition_score(previous_frame, frames[frame_index])
+        if score > best_score:
+            best_offset = offset
+            best_score = score
+    return best_offset
+
+
+def _frame_transition_score(left: tuple[int, ...], right: tuple[int, ...]) -> float:
+    if not left or not right:
+        return 0.0
+    changed = 0
+    magnitude = 0
+    count = min(len(left), len(right))
+    for index in range(count):
+        delta = abs(left[index] - right[index])
+        if delta:
+            changed += 1
+            magnitude += delta
+    return changed + (magnitude / max(1, count * 1024))
 
 
 def _uses_frame_groups(bundle: TokenBundle) -> bool:

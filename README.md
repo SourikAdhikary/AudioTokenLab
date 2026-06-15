@@ -82,7 +82,7 @@ Initial strategies:
 - **Uniform compression**: simple fixed-rate token reduction
 - **Silence-aware compression**: compress low-information regions more aggressively
 - **Patch compression**: group consecutive codec tokens into larger units
-- **Adaptive patching**: vary compression based on segment content
+- **Acoustic salience compression**: keep RVQ frames with the strongest local token transitions, then repeat-fill the decode timeline
 
 The project starts with simple, inspectable baselines before introducing learned compression. That keeps the benchmark honest and makes every improvement easier to interpret.
 
@@ -200,6 +200,7 @@ First real-speech smoke result:
 Dataset: LibriSpeech dev-clean, 4 clips
 Baseline WER: 3.45%
 Uniform WER: 52.26% at ~49.93% token reduction
+Acoustic salience WER: 19.40% at ~49.93% token reduction
 Patch WER: 100.00% at ~74.84% token reduction
 ```
 
@@ -224,8 +225,9 @@ runs/demo/
 - [x] Verified EnCodec benchmark run
 - [x] Token profiling and KV-cache estimation
 - [x] Baseline compression strategies
-- [ ] Speech reconstruction evaluation
-- [ ] ASR-based WER/CER regression checks
+- [x] Speech reconstruction evaluation
+- [x] ASR-based WER/CER regression checks
+- [x] Acoustic salience sparse-frame baseline
 - [ ] Speaker similarity checks
 - [x] HTML dashboard
 - [x] Modal GPU benchmark run

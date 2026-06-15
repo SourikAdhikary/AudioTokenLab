@@ -19,6 +19,7 @@ from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
 from audiotokenlab.tokenizers import build_tokenizer
+from audiotokenlab.tokenizers.encodec_backend import _expanded_decode_tokens
 
 
 class PipelineTest(unittest.TestCase):
@@ -179,6 +180,42 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(compressed.tokens, (2, 20, 6, 60))
         self.assertEqual(compressed.metadata["frame_count"], 2)
+
+    def test_acoustic_salience_keeps_high_transition_frames(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 1, 10, 20, 200, 21, 201, 22, 202, 80, 800),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.12,
+            metadata={"token_layout": "frame_major", "frame_count": 6},
+        )
+        compressed = compress_tokens(bundle, {"name": "acoustic_salience", "factor": 3})
+
+        self.assertEqual(compressed.tokens, (20, 200, 80, 800))
+        self.assertEqual(compressed.metadata["frame_count"], 2)
+        self.assertEqual(compressed.metadata["decode_repeat_counts"], [3, 3])
+        self.assertEqual(compressed.metadata["decode_frame_count"], 6)
+
+    def test_decode_repeat_counts_expand_frame_major_tokens(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(7, 70, 8, 80),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.08,
+            metadata={
+                "token_layout": "frame_major",
+                "frame_count": 2,
+                "decode_repeat_counts": [2, 1],
+            },
+        )
+
+        self.assertEqual(_expanded_decode_tokens(bundle), (7, 70, 7, 70, 8, 80))
 
     def test_encodec_backend_reports_missing_optional_dependency(self) -> None:
         if importlib.util.find_spec("encodec") is not None:
