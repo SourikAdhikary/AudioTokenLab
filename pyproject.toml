@@ -33,6 +33,9 @@ encodec = [
 modal = [
   "modal>=1.0"
 ]
+asr = [
+  "faster-whisper>=1.0.0"
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

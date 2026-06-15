@@ -178,6 +178,14 @@ modal run modal_app.py
 
 Modal artifacts are written locally under `modal-runs/` by the local entrypoint.
 
+Run the Modal speech+ASR smoke benchmark:
+
+```bash
+modal run modal_app.py --speech-asr
+```
+
+This synthesizes two tiny speech clips with `espeak-ng`, runs EnCodec compression, transcribes reconstructed samples with `faster-whisper`, and writes `asr_metrics.csv` plus `asr_summary.json`.
+
 Expected artifacts:
 
 ```text
@@ -204,6 +212,7 @@ runs/demo/
 - [ ] Speaker similarity checks
 - [x] HTML dashboard
 - [x] Modal GPU benchmark run
+- [x] ASR-based WER/CER smoke run
 - [ ] Public benchmark report
 
 ## Design Principles

@@ -1,0 +1,75 @@
+{
+  "run_id": "encodec_speech_asr",
+  "run_date": "2026-06-15",
+  "execution": "modal",
+  "modal_gpu": "L4",
+  "modal_run_url": "https://modal.com/apps/sourikadhikary/main/ap-0HT1t3uho6V685dxnGlCV1",
+  "artifact_root": "modal-runs/encodec_speech_asr",
+  "clip_count": 2,
+  "codec_row_count": 6,
+  "asr_row_count": 6,
+  "tokenizer": "encodec_24khz",
+  "speech_source": "espeak-ng synthetic speech",
+  "asr_model": "faster-whisper tiny.en",
+  "asr_device": "cpu",
+  "asr_compute_type": "int8",
+  "codec_summary": {
+    "mean_token_reduction_ratio": 0.41592255972786946,
+    "mean_kv_cache_savings_mb": 69.875,
+    "mean_reconstruction_mse": 0.01204461742368187,
+    "mean_reconstruction_snr_db": -0.1912393952878967
+  },
+  "codec_strategy_summary": {
+    "baseline": {
+      "row_count": 2,
+      "mean_token_reduction_ratio": 0.0,
+      "mean_kv_cache_savings_mb": 0.0,
+      "mean_reconstruction_mse": 0.0028991708502676765,
+      "mean_reconstruction_snr_db": 4.737279510837925,
+      "mean_real_time_factor": 0.015540458735456147
+    },
+    "uniform": {
+      "row_count": 2,
+      "mean_token_reduction_ratio": 0.5,
+      "mean_kv_cache_savings_mb": 84.0,
+      "mean_reconstruction_mse": 0.011891529718920463,
+      "mean_reconstruction_snr_db": -1.3795478727688573,
+      "mean_real_time_factor": 0.014339851790874047
+    },
+    "patch": {
+      "row_count": 2,
+      "mean_token_reduction_ratio": 0.7477676791836084,
+      "mean_kv_cache_savings_mb": 125.625,
+      "mean_reconstruction_mse": 0.021343151701857473,
+      "mean_reconstruction_snr_db": -3.9314498239327578,
+      "mean_real_time_factor": 0.009554068168519652
+    }
+  },
+  "asr_summary": {
+    "mean_wer": 0.8333333333333334,
+    "mean_cer": 0.5930232558139535,
+    "strategy_summary": {
+      "baseline": {
+        "row_count": 2,
+        "mean_wer": 0.2857142857142857,
+        "mean_cer": 0.10465116279069768
+      },
+      "uniform": {
+        "row_count": 2,
+        "mean_wer": 1.2142857142857144,
+        "mean_cer": 0.7558139534883721
+      },
+      "patch": {
+        "row_count": 2,
+        "mean_wer": 1.0,
+        "mean_cer": 0.9186046511627908
+      }
+    }
+  },
+  "notes": [
+    "First successful Modal speech+ASR smoke run.",
+    "Speech source is synthetic espeak-ng, so WER/CER should be treated as pipeline evidence, not a final benchmark claim.",
+    "First attempt failed because faster-whisper auto-selected CUDA and CTranslate2 required libcublas.so.12; rerun succeeded with CPU int8 ASR.",
+    "Compressed strategies reduce tokens but severely harm ASR on this smoke workload."
+  ]
+}

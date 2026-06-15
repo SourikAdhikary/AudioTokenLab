@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from audiotokenlab.audio_io import write_wav
+from audiotokenlab.asr_eval import summarize_asr
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
@@ -14,6 +16,7 @@ from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
+from audiotokenlab.text_metrics import character_error_rate, word_error_rate
 from audiotokenlab.tokenizers import build_tokenizer
 
 
@@ -53,6 +56,32 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(bundle.tokenizer, "mulaw")
         self.assertGreater(bundle.token_count, 0)
         self.assertEqual(len(decoded), len(clip.samples))
+
+    def test_wav_manifest_loads_transcripts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            audio_path = root / "clip.wav"
+            write_wav(audio_path, tuple([0.0] * 800), 8000)
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "clips": [
+                            {
+                                "clip_id": "clip_a",
+                                "path": str(audio_path),
+                                "transcript": "hello audio tokens",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            clips = load_dataset({"type": "wav_manifest", "path": str(manifest_path)})
+
+        self.assertEqual(clips[0].clip_id, "clip_a")
+        self.assertEqual(clips[0].metadata["transcript"], "hello audio tokens")
 
     def test_compression_reduces_tokens(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]
@@ -183,6 +212,23 @@ class PipelineTest(unittest.TestCase):
             kv_cache={"layers": 2, "hidden_size": 4, "bytes_per_element": 2},
         )
         self.assertAlmostEqual(mb, 10 * 2 * 4 * 2 * 2 / (1024 * 1024))
+
+    def test_text_error_rates(self) -> None:
+        self.assertEqual(word_error_rate("hello world", "hello world"), 0.0)
+        self.assertEqual(word_error_rate("hello world", "hello"), 0.5)
+        self.assertAlmostEqual(character_error_rate("abc", "adc"), 1 / 3)
+
+    def test_asr_summary_groups_strategies(self) -> None:
+        summary = summarize_asr(
+            [
+                {"strategy": "baseline", "wer": 0.0, "cer": 0.0},
+                {"strategy": "patch", "wer": 0.5, "cer": 0.25},
+            ]
+        )
+
+        self.assertEqual(summary["row_count"], 2)
+        self.assertEqual(summary["strategy_summary"]["baseline"]["mean_wer"], 0.0)
+        self.assertEqual(summary["strategy_summary"]["patch"]["mean_cer"], 0.25)
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

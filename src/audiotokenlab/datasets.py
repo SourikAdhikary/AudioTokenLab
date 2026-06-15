@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import wave
 from pathlib import Path
@@ -15,6 +16,8 @@ def load_dataset(spec: dict) -> list[AudioClip]:
         return _load_synthetic_quiet_dataset(spec)
     if dataset_type == "wav_dir":
         return _load_wav_dir(spec)
+    if dataset_type == "wav_manifest":
+        return _load_wav_manifest(spec)
     raise ValueError(f"Unsupported dataset type: {dataset_type}")
 
 
@@ -129,6 +132,37 @@ def _load_wav_dir(spec: dict) -> list[AudioClip]:
         clips.append(_read_wav(path))
     if not clips:
         raise ValueError(f"No .wav files found in {root}")
+    return clips
+
+
+def _load_wav_manifest(spec: dict) -> list[AudioClip]:
+    manifest_path = Path(spec["path"])
+    if not manifest_path.is_absolute():
+        manifest_path = manifest_path.resolve()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    root = Path(manifest.get("root", manifest_path.parent))
+    if not root.is_absolute():
+        root = (manifest_path.parent / root).resolve()
+
+    clips: list[AudioClip] = []
+    for item in manifest.get("clips", []):
+        audio_path = Path(item["path"])
+        if not audio_path.is_absolute():
+            audio_path = root / audio_path
+        clip = _read_wav(audio_path)
+        metadata = dict(clip.metadata)
+        metadata.update({key: value for key, value in item.items() if key != "path"})
+        clips.append(
+            AudioClip(
+                clip_id=str(item.get("clip_id", clip.clip_id)),
+                samples=clip.samples,
+                sample_rate=clip.sample_rate,
+                source=str(audio_path),
+                metadata=metadata,
+            )
+        )
+    if not clips:
+        raise ValueError(f"No clips found in manifest {manifest_path}")
     return clips
 
 
