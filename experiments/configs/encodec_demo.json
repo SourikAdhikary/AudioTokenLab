@@ -1,0 +1,29 @@
+{
+  "run_id": "encodec_demo",
+  "output_dir": "../../runs/encodec_demo",
+  "dataset": {
+    "type": "synthetic_quiet",
+    "count": 2,
+    "sample_rate": 24000,
+    "duration_seconds": 1.5,
+    "base_frequency": 220.0,
+    "speech_seconds": 0.22,
+    "quiet_seconds": 0.28
+  },
+  "tokenizer": {
+    "name": "encodec",
+    "model_name": "encodec_24khz",
+    "bandwidth": 6.0,
+    "device": "cpu"
+  },
+  "strategies": [
+    { "name": "baseline" },
+    { "name": "uniform", "factor": 2 },
+    { "name": "patch", "patch_size": 4 }
+  ],
+  "kv_cache": {
+    "layers": 24,
+    "hidden_size": 1024,
+    "bytes_per_element": 2
+  }
+}

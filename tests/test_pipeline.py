@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 from audiotokenlab.compression import compress_tokens
 from audiotokenlab.config import load_config
 from audiotokenlab.datasets import load_dataset
+from audiotokenlab.models import TokenBundle
 from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
@@ -106,6 +108,44 @@ class PipelineTest(unittest.TestCase):
         )
 
         self.assertLess(compressed.token_count, bundle.token_count)
+
+    def test_frame_major_uniform_compression_preserves_codebook_groups(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 2, 20, 3, 30, 4, 40),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.08,
+            metadata={"token_layout": "frame_major", "frame_count": 4},
+        )
+        compressed = compress_tokens(bundle, {"name": "uniform", "factor": 2})
+
+        self.assertEqual(compressed.tokens, (1, 10, 3, 30))
+        self.assertEqual(compressed.metadata["frame_count"], 2)
+
+    def test_frame_major_patch_compression_preserves_codebook_groups(self) -> None:
+        bundle = TokenBundle(
+            clip_id="rvq",
+            tokenizer="test",
+            tokens=(1, 10, 3, 30, 5, 50, 7, 70),
+            frame_rate=50.0,
+            codebook_count=2,
+            sample_rate=24000,
+            duration_seconds=0.08,
+            metadata={"token_layout": "frame_major", "frame_count": 4},
+        )
+        compressed = compress_tokens(bundle, {"name": "patch", "patch_size": 2})
+
+        self.assertEqual(compressed.tokens, (2, 20, 6, 60))
+        self.assertEqual(compressed.metadata["frame_count"], 2)
+
+    def test_encodec_backend_reports_missing_optional_dependency(self) -> None:
+        if importlib.util.find_spec("encodec") is not None:
+            self.skipTest("encodec is installed in this environment")
+        with self.assertRaisesRegex(ImportError, "optional dependencies"):
+            build_tokenizer({"name": "encodec"})
 
     def test_profile_clip_emits_metric_rows(self) -> None:
         clip = load_dataset({"type": "synthetic", "count": 1})[0]

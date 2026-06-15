@@ -1,7 +1,8 @@
 from audiotokenlab.tokenizers.dummy import DummyTokenizer
+from audiotokenlab.tokenizers.encodec_backend import EncodecTokenizer
 from audiotokenlab.tokenizers.mulaw import MuLawTokenizer
 
-__all__ = ["DummyTokenizer", "MuLawTokenizer", "build_tokenizer"]
+__all__ = ["DummyTokenizer", "EncodecTokenizer", "MuLawTokenizer", "build_tokenizer"]
 
 
 def build_tokenizer(spec: dict):
@@ -15,5 +16,11 @@ def build_tokenizer(spec: dict):
         return MuLawTokenizer(
             quantization_channels=int(spec.get("quantization_channels", 256)),
             hop_size=int(spec.get("hop_size", 1)),
+        )
+    if name == "encodec":
+        return EncodecTokenizer(
+            model_name=str(spec.get("model_name", "encodec_24khz")),
+            bandwidth=float(spec.get("bandwidth", 6.0)),
+            device=str(spec.get("device", "cpu")),
         )
     raise ValueError(f"Unsupported tokenizer: {name}")

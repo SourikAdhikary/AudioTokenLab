@@ -161,6 +161,14 @@ audiotokenlab profile --config experiments/configs/mulaw_demo.json
 audiotokenlab report runs/mulaw_demo
 ```
 
+Run the optional EnCodec backend after installing the extra dependencies:
+
+```bash
+python3 -m pip install -e '.[encodec]'
+audiotokenlab profile --config experiments/configs/encodec_demo.json
+audiotokenlab report runs/encodec_demo
+```
+
 Expected artifacts:
 
 ```text
@@ -178,7 +186,8 @@ runs/demo/
 - [x] Quiet-segment synthetic workload for silence-aware compression
 - [x] Dependency-free mu-law audio tokenizer baseline
 - [x] Reconstructed WAV sample artifacts
-- [ ] Real neural codec backend
+- [x] Optional EnCodec backend adapter
+- [ ] Verified EnCodec benchmark run
 - [x] Token profiling and KV-cache estimation
 - [x] Baseline compression strategies
 - [ ] Speech reconstruction evaluation

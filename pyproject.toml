@@ -25,10 +25,15 @@ classifiers = [
 [project.scripts]
 audiotokenlab = "audiotokenlab.cli:main"
 
+[project.optional-dependencies]
+encodec = [
+  "torch>=2.0",
+  "encodec>=0.1.1"
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-

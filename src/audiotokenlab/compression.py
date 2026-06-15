@@ -32,6 +32,8 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
 def _replace(bundle: TokenBundle, tokens: tuple[int, ...], strategy: str) -> TokenBundle:
     metadata = dict(bundle.metadata)
     metadata["compression_strategy"] = strategy
+    if _uses_frame_groups(bundle):
+        metadata["frame_count"] = len(tokens) // bundle.codebook_count
     return TokenBundle(
         clip_id=bundle.clip_id,
         tokenizer=bundle.tokenizer,
@@ -47,6 +49,12 @@ def _replace(bundle: TokenBundle, tokens: tuple[int, ...], strategy: str) -> Tok
 def _uniform(bundle: TokenBundle, factor: int, strategy: str) -> TokenBundle:
     if factor <= 1:
         return _replace(bundle, tokens=bundle.tokens, strategy=strategy)
+    if _uses_frame_groups(bundle):
+        return _replace(
+            bundle,
+            tokens=_flatten_frames(_frame_groups(bundle)[::factor]),
+            strategy=strategy,
+        )
     return _replace(bundle, tokens=tuple(bundle.tokens[::factor]), strategy=strategy)
 
 
@@ -60,6 +68,22 @@ def _silence_aware(
 ) -> TokenBundle:
     if factor <= 1:
         return _replace(bundle, tokens=bundle.tokens, strategy=strategy)
+
+    if _uses_frame_groups(bundle):
+        kept_frames: list[tuple[int, ...]] = []
+        quiet_seen = 0
+        for frame in _frame_groups(bundle):
+            if all(
+                _is_quiet_token(token, threshold, threshold_low, threshold_high)
+                for token in frame
+            ):
+                if quiet_seen % factor == 0:
+                    kept_frames.append(frame)
+                quiet_seen += 1
+            else:
+                kept_frames.append(frame)
+                quiet_seen = 0
+        return _replace(bundle, tokens=_flatten_frames(kept_frames), strategy=strategy)
 
     kept: list[int] = []
     quiet_seen = 0
@@ -89,9 +113,48 @@ def _patch(bundle: TokenBundle, patch_size: int, strategy: str) -> TokenBundle:
     if patch_size <= 1:
         return _replace(bundle, tokens=bundle.tokens, strategy=strategy)
 
+    if _uses_frame_groups(bundle):
+        patched_frames: list[tuple[int, ...]] = []
+        frames = _frame_groups(bundle)
+        for start in range(0, len(frames), patch_size):
+            patch = frames[start : start + patch_size]
+            if not patch:
+                continue
+            merged: list[int] = []
+            for codebook_index in range(bundle.codebook_count):
+                merged.append(
+                    round(
+                        sum(frame[codebook_index] for frame in patch) / len(patch)
+                    )
+                )
+            patched_frames.append(tuple(merged))
+        return _replace(bundle, tokens=_flatten_frames(patched_frames), strategy=strategy)
+
     patched: list[int] = []
     for start in range(0, len(bundle.tokens), patch_size):
         patch = bundle.tokens[start : start + patch_size]
         if patch:
             patched.append(round(sum(patch) / len(patch)))
     return _replace(bundle, tokens=tuple(patched), strategy=strategy)
+
+
+def _uses_frame_groups(bundle: TokenBundle) -> bool:
+    return (
+        bundle.metadata.get("token_layout") == "frame_major"
+        and bundle.codebook_count > 1
+        and len(bundle.tokens) % bundle.codebook_count == 0
+    )
+
+
+def _frame_groups(bundle: TokenBundle) -> list[tuple[int, ...]]:
+    return [
+        bundle.tokens[start : start + bundle.codebook_count]
+        for start in range(0, len(bundle.tokens), bundle.codebook_count)
+    ]
+
+
+def _flatten_frames(frames: list[tuple[int, ...]]) -> tuple[int, ...]:
+    flattened: list[int] = []
+    for frame in frames:
+        flattened.extend(frame)
+    return tuple(flattened)
