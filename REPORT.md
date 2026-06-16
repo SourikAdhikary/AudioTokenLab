@@ -130,6 +130,38 @@ This run is deliberately harder than LibriSpeech `dev-clean`. `faster-whisper ti
 
 At roughly 50% token reduction, `energy_salience` improves WER by 11.56 percentage points over uniform dropping and preserves much more speaker identity. The linear selector is close to the salience baselines but is still using hand-set weights, not trained weights.
 
+## Trained Selector Artifact
+
+The next selector artifact distills the 75-clip broader run into `trained_selector_v1`. It uses the evaluated ASR WER/CER, speaker similarity, and target token-reduction distance to assign credit across `acoustic_salience`, `energy_salience`, `vad_salience`, and `linear_selector_v1`, then blends their linear frame-selector templates.
+
+Trained weights:
+
+```json
+{
+  "energy": 1.272474,
+  "onset": 1.318504,
+  "transition": 1.271419,
+  "speech_activity": 0.877787,
+  "center": 0.034664
+}
+```
+
+Training source:
+
+```text
+modal-runs/encodec_broader_speech_asr/
+```
+
+Tracked artifact:
+
+```text
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
+```
+
+This is not yet a held-out result. The next benchmark should run `--strategy-set trained` to evaluate `trained_selector_v1` against the extended baselines on fresh clips.
+
+Remote smoke validation for loading and running the trained selector: https://modal.com/apps/sourikadhikary/main/ap-zN30fQb7Yz3jV025WF9ssr
+
 Serving-stack report:
 
 | Strategy | Mean Tokens | Prefill Work Ratio | Decode KV Read Reduction | CUDA Prefill |
@@ -149,6 +181,7 @@ experiments/results/encodec_broader_speech_asr_modal_2026-06-16_publication_summ
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.svg
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
 ```
 
 The earlier 3-clip smoke artifacts remain in `experiments/results/` as pipeline validation history.
@@ -167,6 +200,20 @@ Small smoke variant:
 
 ```bash
 modal run modal_app.py --broader-speech-asr --max-clips-per-source 1 --strategy-set extended
+```
+
+Fit selector weights:
+
+```bash
+PYTHONPATH=src python3 -m audiotokenlab train-selector \
+  modal-runs/encodec_broader_speech_asr \
+  --output experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
+```
+
+Evaluate trained selector:
+
+```bash
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set trained --serving-microbench
 ```
 
 The serving report writes:
@@ -221,12 +268,13 @@ Numbers to mention:
 - Mixed-domain baseline WER is high with `tiny.en`; broader absolute WER should be interpreted as evaluator stress.
 - Speaker similarity is measured with one pretrained embedding model; subjective voice quality and prosody are outside the v1 metric scope.
 - `vad_salience` is stronger than raw frame energy, but it is still deterministic signal processing rather than a trained VAD.
-- `linear_selector_v1` is a selector hook; default weights are hand-set unless a run explicitly reports trained weights.
+- `trained_selector_v1` is distilled from strategy-level benchmark outcomes; it is not yet trained from frame-level labels or validated on held-out clips.
 - The serving stack currently benchmarks transformer-shaped token workloads, not a production voice-agent model with live traffic.
 
 ## Next Research Steps
 
-1. Train selector weights against ASR/speaker preservation instead of using the default linear weights.
+1. Evaluate `trained_selector_v1` on fresh broader clips.
 2. Collect subjective listening ratings for the generated study sheet.
 3. Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks.
-4. Swap the reference PyTorch transformer microbenchmark for a selected production-grade audio-token model.
+4. Train a frame-level selector once frame labels or pairwise preference labels are available.
+5. Swap the reference PyTorch transformer microbenchmark for a selected production-grade audio-token model.

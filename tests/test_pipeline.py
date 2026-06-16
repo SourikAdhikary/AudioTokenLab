@@ -27,6 +27,7 @@ from audiotokenlab.publication import write_publication_artifacts
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
 from audiotokenlab.listening_study import write_listening_study_artifacts
+from audiotokenlab.selector_training import train_selector_from_artifacts
 from audiotokenlab.serving import write_serving_stack_report
 from audiotokenlab.speaker_eval import summarize_speaker, write_speaker_artifacts
 from audiotokenlab.text_metrics import character_error_rate, word_error_rate
@@ -395,6 +396,52 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(compressed.tokens, (2, 11, 4, 13))
         self.assertEqual(compressed.metadata["selector_type"], "linear_frame_selector")
 
+    def test_learned_selector_loads_weights_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            weights_path = root / "selector.json"
+            weights_path.write_text(
+                json.dumps(
+                    {
+                        "trained_strategy": {
+                            "weights": {
+                                "energy": 10.0,
+                                "transition": 0.0,
+                                "onset": 0.0,
+                                "speech_activity": 0.0,
+                                "center": 0.0,
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            bundle = TokenBundle(
+                clip_id="rvq",
+                tokenizer="test",
+                tokens=(1, 10, 2, 11, 3, 12, 4, 13),
+                frame_rate=50.0,
+                codebook_count=2,
+                sample_rate=24000,
+                duration_seconds=0.08,
+                metadata={
+                    "token_layout": "frame_major",
+                    "frame_count": 4,
+                    "frame_energies": [0.1, 0.7, 0.2, 0.8],
+                },
+            )
+
+            compressed = compress_tokens(
+                bundle,
+                {
+                    "name": "learned_selector",
+                    "factor": 2,
+                    "weights_path": str(weights_path),
+                },
+            )
+
+        self.assertEqual(compressed.tokens, (2, 11, 4, 13))
+
     def test_strategy_label_is_used_for_metric_identity(self) -> None:
         bundle = TokenBundle(
             clip_id="rvq",
@@ -748,6 +795,43 @@ class PipelineTest(unittest.TestCase):
 
         self.assertEqual(report["strategy_summary"]["uniform"]["prefill_attention_work_ratio"], 0.25)
         self.assertEqual(report["strategy_summary"]["uniform"]["decode_kv_read_reduction_ratio"], 0.5)
+
+    def test_train_selector_from_artifacts_writes_strategy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "metrics.csv").write_text(
+                "clip_id,strategy,token_reduction_ratio,reconstruction_snr_db\n"
+                "clip_a,acoustic_salience,0.5,0\n"
+                "clip_a,energy_salience,0.5,0\n"
+                "clip_a,vad_salience,0.5,0\n"
+                "clip_a,linear_selector_v1,0.5,0\n",
+                encoding="utf-8",
+            )
+            (root / "asr_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_text,hypothesis_text,wer,cer\n"
+                "clip_a,acoustic_salience,/tmp/a.wav,hello,hello,0.3,0.2\n"
+                "clip_a,energy_salience,/tmp/e.wav,hello,hello,0.1,0.1\n"
+                "clip_a,vad_salience,/tmp/v.wav,hello,hello,0.2,0.1\n"
+                "clip_a,linear_selector_v1,/tmp/l.wav,hello,hello,0.25,0.1\n",
+                encoding="utf-8",
+            )
+            (root / "speaker_metrics.csv").write_text(
+                "clip_id,strategy,sample_path,reference_strategy,speaker_similarity,model_source\n"
+                "clip_a,acoustic_salience,/tmp/a.wav,baseline,0.7,test\n"
+                "clip_a,energy_salience,/tmp/e.wav,baseline,0.9,test\n"
+                "clip_a,vad_salience,/tmp/v.wav,baseline,0.8,test\n"
+                "clip_a,linear_selector_v1,/tmp/l.wav,baseline,0.75,test\n",
+                encoding="utf-8",
+            )
+            output_path = root / "trained_selector.json"
+
+            summary = train_selector_from_artifacts(root, output_path)
+            output_exists = output_path.exists()
+
+        self.assertTrue(output_exists)
+        self.assertEqual(summary["trained_strategy"]["label"], "trained_selector_v1")
+        self.assertGreater(summary["strategy_credit"]["energy_salience"], 0.0)
+        self.assertIn("weights", summary["trained_strategy"])
 
     def test_end_to_end_run_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

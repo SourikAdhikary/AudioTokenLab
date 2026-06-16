@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from audiotokenlab.models import TokenBundle
 
 
@@ -59,7 +62,7 @@ def compress_tokens(bundle: TokenBundle, strategy: dict) -> TokenBundle:
         return _learned_selector(
             bundle,
             factor=factor,
-            weights=dict(strategy.get("weights", {})),
+            weights=_selector_weights(strategy),
             strategy=strategy_label,
         )
     raise ValueError(f"Unsupported compression strategy: {name}")
@@ -585,6 +588,17 @@ def _remove_short_runs(mask: list[bool], min_length: int) -> list[bool]:
 
 def _is_number(value: object) -> bool:
     return isinstance(value, int | float)
+
+
+def _selector_weights(strategy: dict) -> dict:
+    weights = dict(strategy.get("weights", {}))
+    weights_path = strategy.get("weights_path")
+    if weights_path:
+        loaded = json.loads(Path(str(weights_path)).read_text(encoding="utf-8"))
+        if "trained_strategy" in loaded:
+            loaded = loaded["trained_strategy"]
+        weights.update(dict(loaded.get("weights", loaded)))
+    return weights
 
 
 def _uses_frame_groups(bundle: TokenBundle) -> bool:

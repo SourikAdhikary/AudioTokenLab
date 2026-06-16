@@ -19,6 +19,23 @@ def build_parser() -> argparse.ArgumentParser:
     report = subparsers.add_parser("report", help="Print generated report paths.")
     report.add_argument("run_dir", help="Run directory produced by profile.")
 
+    train_selector = subparsers.add_parser(
+        "train-selector",
+        help="Fit linear selector weights from an evaluated run directory.",
+    )
+    train_selector.add_argument("run_dir", help="Run directory with metrics/asr/speaker CSVs.")
+    train_selector.add_argument(
+        "--output",
+        required=True,
+        help="Path to write the trained selector JSON artifact.",
+    )
+    train_selector.add_argument(
+        "--target-reduction",
+        type=float,
+        default=0.5,
+        help="Target token reduction ratio for the training objective.",
+    )
+
     return parser
 
 
@@ -52,6 +69,20 @@ def main(argv: list[str] | None = None) -> int:
             path = run_dir / name
             status = "ok" if path.exists() else "missing"
             print(f"{status}: {path}")
+        return 0
+
+    if args.command == "train-selector":
+        from audiotokenlab.selector_training import train_selector_from_artifacts
+
+        summary = train_selector_from_artifacts(
+            Path(args.run_dir),
+            Path(args.output),
+            target_reduction=args.target_reduction,
+        )
+        strategy = summary["trained_strategy"]
+        print(f"wrote trained selector: {args.output}")
+        print(f"label: {strategy['label']}")
+        print(f"weights: {strategy['weights']}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

@@ -434,6 +434,19 @@ def _librispeech_strategies(strategy_set: str) -> list[dict]:
             },
             {"name": "patch", "patch_size": 4},
         ]
+    if strategy_set == "trained":
+        return [
+            *_librispeech_strategies("extended"),
+            {
+                "name": "learned_selector",
+                "label": "trained_selector_v1",
+                "factor": 2,
+                "weights_path": str(
+                    APP_DIR
+                    / "experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json"
+                ),
+            },
+        ]
     raise ValueError(f"Unsupported strategy_set: {strategy_set}")
 
 

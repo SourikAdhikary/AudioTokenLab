@@ -90,6 +90,7 @@ Tracked, repo-visible artifacts:
 - [75-clip broader summary chart](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.svg)
 - [75-clip broader serving report](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md)
 - [75-clip broader listening-study sheet](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv)
+- [75-clip trained selector artifact](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json)
 - [broader-speech smoke publication summary](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_publication_summary.json)
 - [broader-speech smoke serving report](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_serving_stack_report.md)
 - [broader-speech smoke listening-study sheet](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_listening_study.csv)
@@ -248,6 +249,22 @@ Small smoke variant:
 modal run modal_app.py --broader-speech-asr --max-clips-per-source 1 --strategy-set extended
 ```
 
+Fit selector weights from an evaluated run:
+
+```bash
+PYTHONPATH=src python3 -m audiotokenlab train-selector \
+  modal-runs/encodec_broader_speech_asr \
+  --output experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
+```
+
+Evaluate the trained selector alongside the extended baselines:
+
+```bash
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set trained --serving-microbench
+```
+
+Remote smoke validation for `strategy_set=trained`: `ap-zN30fQb7Yz3jV025WF9ssr`.
+
 The serving report consumes `metrics.csv` and writes:
 
 ```text
@@ -341,12 +358,13 @@ Completed:
 - [x] Broader multi-corpus benchmark across LibriSpeech, MInDS-14, and FLEURS
 - [x] VAD-aware selector baseline
 - [x] Linear learned-selector integration point
+- [x] Trained selector weight artifact distilled from ASR and speaker outcomes
 - [x] Subjective listening-study artifact generation
 - [x] Transformer serving-stack report and CUDA microbenchmark
 
 Next:
 
-- [ ] Train selector weights against ASR and speaker-preservation objectives
+- [ ] Evaluate `trained_selector_v1` on a fresh broader benchmark run
 - [ ] Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks
 - [ ] Collect human listening ratings and summarize MOS/intelligibility/speaker-match results
 - [ ] Integrate a production-grade audio-token transformer or voice-agent serving loop

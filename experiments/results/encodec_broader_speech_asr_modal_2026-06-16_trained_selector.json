@@ -1,0 +1,70 @@
+{
+  "clip_count": 75,
+  "objective": {
+    "cer_weight": 0.25,
+    "reduction_weight": 0.25,
+    "speaker_weight": 0.35,
+    "target_reduction": 0.5,
+    "temperature": 0.08,
+    "wer_weight": 1.0
+  },
+  "row_count": 300,
+  "strategy_credit": {
+    "acoustic_salience": 0.27141928184511455,
+    "energy_salience": 0.2665774773349042,
+    "linear_selector_v1": 0.23109654835679763,
+    "vad_salience": 0.23090669246318352
+  },
+  "strategy_summary": {
+    "acoustic_salience": {
+      "mean_cer": 0.36616993026824746,
+      "mean_selector_loss": 0.658274918408678,
+      "mean_speaker_similarity": 0.7923155935605367,
+      "mean_token_reduction_ratio": 0.4994725224900286,
+      "mean_wer": 0.49391102421031113,
+      "row_count": 75.0
+    },
+    "energy_salience": {
+      "mean_cer": 0.3658992137520581,
+      "mean_selector_loss": 0.6535739085411365,
+      "mean_speaker_similarity": 0.7958805481592814,
+      "mean_token_reduction_ratio": 0.4994725224900286,
+      "mean_wer": 0.49052542758137757,
+      "row_count": 75.0
+    },
+    "linear_selector_v1": {
+      "mean_cer": 0.36982312544352514,
+      "mean_selector_loss": 0.6693279815965636,
+      "mean_speaker_similarity": 0.7915323384602865,
+      "mean_token_reduction_ratio": 0.4994725224900286,
+      "mean_wer": 0.5037766493192897,
+      "row_count": 75.0
+    },
+    "vad_salience": {
+      "mean_cer": 0.38351186068382903,
+      "mean_selector_loss": 0.6803082091479482,
+      "mean_speaker_similarity": 0.7918993703524272,
+      "mean_token_reduction_ratio": 0.4994725224900286,
+      "mean_wer": 0.5114631542228477,
+      "row_count": 75.0
+    }
+  },
+  "trained_strategy": {
+    "factor": 2,
+    "label": "trained_selector_v1",
+    "name": "learned_selector",
+    "weights": {
+      "absolute_threshold": 0.04,
+      "bias": -0.05,
+      "center": 0.034664,
+      "energy": 1.272474,
+      "hangover_frames": 1.0,
+      "min_speech_frames": 1.0,
+      "noise_floor_ratio": 1.8,
+      "onset": 1.318504,
+      "speech_activity": 0.877787,
+      "transition": 1.271419
+    }
+  },
+  "training_source": "modal-runs/encodec_broader_speech_asr"
+}
