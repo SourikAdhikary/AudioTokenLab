@@ -326,6 +326,8 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 
 ## Roadmap
 
+Completed:
+
 - [x] Local profiling pipeline
 - [x] Dummy and mu-law tokenizer baselines
 - [x] Optional EnCodec backend
@@ -336,10 +338,19 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 - [x] Salience-based compression baselines
 - [x] Energy-salience tuning run
 - [x] Public report, chart, and listening examples
-- [ ] Broader datasets beyond LibriSpeech
-- [ ] Stronger VAD or learned token selector
-- [ ] Subjective listening study
-- [ ] Integration with a real audio-token transformer serving stack
+- [x] Broader multi-corpus benchmark across LibriSpeech, MInDS-14, and FLEURS
+- [x] VAD-aware selector baseline
+- [x] Linear learned-selector integration point
+- [x] Subjective listening-study artifact generation
+- [x] Transformer serving-stack report and CUDA microbenchmark
+
+Next:
+
+- [ ] Train selector weights against ASR and speaker-preservation objectives
+- [ ] Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks
+- [ ] Collect human listening ratings and summarize MOS/intelligibility/speaker-match results
+- [ ] Integrate a production-grade audio-token transformer or voice-agent serving loop
+- [ ] Add more licensed or internal speech corpora through the source-configurable corpus builder
 
 ## Tests
 
