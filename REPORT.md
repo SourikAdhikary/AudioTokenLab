@@ -6,7 +6,7 @@ AudioTokenLab benchmarks how much EnCodec audio-token streams can be compressed 
 
 The current benchmark evaluates EnCodec 24 kHz reconstructions with `faster-whisper` and SpeechBrain ECAPA speaker embeddings on a 100-clip LibriSpeech `dev-clean` slice. The main result: simple salience-based sparse-frame retention gives the same roughly 50% token reduction as uniform frame dropping, but preserves both ASR and speaker similarity much better.
 
-The repo now has the next-stage benchmark machinery implemented as well: broader multi-corpus manifests, VAD/selector strategies, subjective listening-study sheets, and a serving-stack report for transformer prefill/KV-cache tradeoffs. The numbers below remain the tracked LibriSpeech public result until a new broader Modal run is committed.
+The repo also includes a broader 75-clip multi-corpus run across LibriSpeech, MInDS-14, and FLEURS, plus VAD/selector strategies, subjective listening-study sheets, and a serving-stack report for transformer prefill/KV-cache tradeoffs.
 
 ## Benchmark Setup
 
@@ -92,46 +92,81 @@ experiments/results/encodec_librispeech_asr_100clip_listening_examples.md
 
 The main failure mode is not subtle: uniform frame dropping often turns words into plausible but wrong phrases. Patch averaging can collapse into empty or unrelated transcriptions. Salience methods still make word errors, especially on longer utterances, but they preserve enough local acoustic structure to stay far closer to the baseline.
 
-## Broader-Speech Smoke Validation
+## Broader-Speech Benchmark
 
-A tiny Modal smoke run validates the next-stage pipeline across three sources:
+The broader Modal run evaluates the extended strategy set across three sources:
 
-- LibriSpeech `dev-clean`
-- MInDS-14 `en-US`
-- FLEURS `en_us`
+- LibriSpeech `dev-clean`: 25 clips
+- MInDS-14 `en-US`: 25 clips
+- FLEURS `en_us`: 25 clips
 
-Smoke run details:
+Run details:
 
-- Modal run: https://modal.com/apps/sourikadhikary/main/ap-wLrk8GXPvKU9w02oGqYWb9
-- Clips: 3
+- Modal run: https://modal.com/apps/sourikadhikary/main/ap-GvQq49rJPkHf3SMC3joT5H
+- Clips: 75
 - Strategies: 7
-- Reconstructed/evaluated samples: 21
+- Reconstructed/evaluated samples: 525
 - Strategy set: `extended`
+- Serving microbenchmark: enabled
 
-Tracked smoke artifacts:
+![Broader speech token reduction vs WER](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.svg)
+
+| Strategy | Token Reduction | Mean WER | Mean CER | Speaker Sim | KV Savings | Mean SNR |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `baseline` | 0.00% | 36.05% | 25.90% | 1.000 | 0.00 MB | 6.63 dB |
+| `uniform` | 49.95% | 60.61% | 47.16% | 0.460 | 232.97 MB | -1.38 dB |
+| `acoustic_salience` | 49.95% | 49.39% | 36.62% | 0.792 | 232.97 MB | -0.25 dB |
+| `energy_salience` | 49.95% | 49.05% | 36.59% | 0.796 | 232.97 MB | -0.36 dB |
+| `linear_selector_v1` | 49.95% | 50.38% | 36.98% | 0.792 | 232.97 MB | -0.32 dB |
+| `vad_salience` | 49.95% | 51.15% | 38.35% | 0.792 | 232.97 MB | -0.22 dB |
+| `patch` | 74.92% | 99.55% | 96.95% | 0.043 | 349.47 MB | -13.10 dB |
+
+This run is deliberately harder than LibriSpeech `dev-clean`. `faster-whisper tiny.en` has a 36.05% baseline WER on the mixed corpus, so absolute WER should be read as evaluator stress. The same-budget comparison is still useful:
+
+- `uniform`: 60.61% WER, 0.460 speaker similarity
+- `energy_salience`: 49.05% WER, 0.796 speaker similarity
+- `acoustic_salience`: 49.39% WER, 0.792 speaker similarity
+- `linear_selector_v1`: 50.38% WER, 0.792 speaker similarity
+
+At roughly 50% token reduction, `energy_salience` improves WER by 11.56 percentage points over uniform dropping and preserves much more speaker identity. The linear selector is close to the salience baselines but is still using hand-set weights, not trained weights.
+
+Serving-stack report:
+
+| Strategy | Mean Tokens | Prefill Work Ratio | Decode KV Read Reduction | CUDA Prefill |
+| --- | ---: | ---: | ---: | ---: |
+| `baseline` | 4974.2 | 1.000x | 0.00% | 4096 tokens, 10.56 ms |
+| `energy_salience` | 2489.2 | 0.250x | 49.96% | 2264 tokens, 4.15 ms |
+| `acoustic_salience` | 2489.2 | 0.250x | 49.96% | 2264 tokens, 4.08 ms |
+| `linear_selector_v1` | 2489.2 | 0.250x | 49.96% | 2264 tokens, 5.26 ms |
+| `patch` | 1246.5 | 0.063x | 74.94% | 1136 tokens, 2.01 ms |
+
+The microbenchmark uses a reference PyTorch transformer layer on Modal L4. It caps representative token lengths at 4096, so the timings are serving-shape evidence, not a production voice-agent latency claim.
+
+Tracked broader artifacts:
 
 ```text
-experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_publication_summary.json
-experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_serving_stack_report.md
-experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_listening_study.csv
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_publication_summary.json
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.svg
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md
+experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv
 ```
 
-This smoke run is not a statistically meaningful benchmark. It proves the broader dataset path, VAD/selector strategies, subjective listening sheet, serving-stack report, and CUDA PyTorch transformer microbenchmark all execute end to end on Modal.
+The earlier 3-clip smoke artifacts remain in `experiments/results/` as pipeline validation history.
 
 ## Next-Stage Workflows
 
 Broader speech benchmark:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set extended --serving-microbench
 ```
 
 This combines LibriSpeech with public Hugging Face speech corpora such as MInDS-14 and FLEURS, subject to upstream access and license constraints. The corpus builder is source-configurable for TED-LIUM, Common Voice, VoxPopuli, or internal manifests when access is available. It emits the same ASR, speaker, publication, listening, and serving artifacts as the LibriSpeech path.
 
-Serving-stack benchmark:
+Small smoke variant:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended --serving-microbench
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 1 --strategy-set extended
 ```
 
 The serving report writes:
@@ -159,22 +194,31 @@ Short version:
 
 > I built AudioTokenLab, a benchmark for audio-token compression. On a 100-clip LibriSpeech EnCodec run, naive 2x frame dropping cut tokens by 50% but pushed WER to 36.7%. A simple salience policy kept the same 50% token reduction while cutting WER to 14.8% and preserving speaker similarity much better.
 
+Broader version:
+
+> I extended it to a 75-clip mixed speech run across LibriSpeech, MInDS-14, and FLEURS. On this harder mixed-domain set, uniform 2x dropping hit 60.6% WER, while energy salience kept the same 50% token reduction at 49.1% WER and much higher speaker similarity.
+
 Numbers to mention:
 
 - 100 real speech clips
 - 800 reconstructed samples
+- 75 broader speech clips
+- 525 broader reconstructed/evaluated samples
 - Modal L4 run
 - EnCodec 24 kHz tokens
 - `faster-whisper` WER/CER
 - SpeechBrain ECAPA speaker similarity
 - 49.96% token reduction
 - 36.72% WER for uniform dropping vs 14.77% WER for acoustic salience
+- broader run: 60.61% WER for uniform dropping vs 49.05% WER for energy salience
+- broader serving report: 0.250x prefill attention-work ratio at roughly 50% token reduction
 - best tuned energy variant: `energy_tuned_e4_t1_o2`
 
 ## Current Limitations
 
-- 100 clips is a stronger benchmark than the smoke run, but still not a publication-grade estimate.
+- 100 LibriSpeech clips and 75 broader clips are useful engineering benchmarks, but still not publication-grade estimates.
 - `faster-whisper` `tiny.en` is a convenient evaluator, not an oracle for speech quality.
+- Mixed-domain baseline WER is high with `tiny.en`; broader absolute WER should be interpreted as evaluator stress.
 - Speaker similarity is measured with one pretrained embedding model; subjective voice quality and prosody are outside the v1 metric scope.
 - `vad_salience` is stronger than raw frame energy, but it is still deterministic signal processing rather than a trained VAD.
 - `linear_selector_v1` is a selector hook; default weights are hand-set unless a run explicitly reports trained weights.
@@ -182,7 +226,7 @@ Numbers to mention:
 
 ## Next Research Steps
 
-1. Run and publish the broader multi-corpus Modal benchmark.
-2. Train selector weights against ASR/speaker preservation instead of using the default linear weights.
-3. Collect subjective listening ratings for the generated study sheet.
+1. Train selector weights against ASR/speaker preservation instead of using the default linear weights.
+2. Collect subjective listening ratings for the generated study sheet.
+3. Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks.
 4. Swap the reference PyTorch transformer microbenchmark for a selected production-grade audio-token model.

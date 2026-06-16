@@ -6,6 +6,7 @@
 [![Tokenizer: EnCodec](https://img.shields.io/badge/tokenizer-EnCodec-orange)](https://github.com/facebookresearch/encodec)
 [![Datasets: LibriSpeech+](https://img.shields.io/badge/datasets-LibriSpeech%20%2B%20HF%20speech-blue)](https://www.openslr.org/12/)
 [![Run: 100 clips](https://img.shields.io/badge/run-100%20clips%20%7C%20800%20samples-111827)](experiments/results/encodec_librispeech_asr_modal_2026-06-15.json)
+[![Broader Run: 75 clips](https://img.shields.io/badge/broader-75%20clips%20%7C%20525%20samples-0f766e)](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_publication_summary.json)
 
 **Audio-token compression benchmarks for speech and voice-model infrastructure.**
 
@@ -52,6 +53,31 @@ The important comparison is not baseline vs compressed audio. It is **uniform dr
 
 See the full report: [REPORT.md](REPORT.md)
 
+## Broader Speech Result
+
+The broader benchmark runs the same EnCodec pipeline on 75 clips across three sources:
+
+```text
+LibriSpeech dev-clean: 25 clips
+MInDS-14 en-US:        25 clips
+FLEURS en_us:          25 clips
+Strategies:            7
+Evaluated samples:     525
+Modal run:             ap-GvQq49rJPkHf3SMC3joT5H
+```
+
+| Strategy | Token Reduction | Mean WER | Speaker Sim | KV Savings |
+| --- | ---: | ---: | ---: | ---: |
+| `baseline` | 0.00% | 36.05% | 1.000 | 0.00 MB |
+| `uniform` | 49.95% | 60.61% | 0.460 | 232.97 MB |
+| `acoustic_salience` | 49.95% | 49.39% | 0.792 | 232.97 MB |
+| `energy_salience` | 49.95% | 49.05% | 0.796 | 232.97 MB |
+| `linear_selector_v1` | 49.95% | 50.38% | 0.792 | 232.97 MB |
+| `vad_salience` | 49.95% | 51.15% | 0.792 | 232.97 MB |
+| `patch` | 74.92% | 99.55% | 0.043 | 349.47 MB |
+
+This mixed-domain run is harder than LibriSpeech for `tiny.en`, so absolute WER is higher. The important signal is still the same-budget comparison: `energy_salience` keeps roughly 50% token reduction while improving WER by 11.56 percentage points over uniform dropping and preserving much more speaker identity.
+
 ## Result Artifacts
 
 Tracked, repo-visible artifacts:
@@ -60,13 +86,17 @@ Tracked, repo-visible artifacts:
 - [100-clip summary chart](experiments/results/encodec_librispeech_asr_100clip_summary_chart.svg)
 - [listening examples](experiments/results/encodec_librispeech_asr_100clip_listening_examples.md)
 - [committed example WAVs](experiments/results/listening_examples/)
+- [75-clip broader publication summary](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_publication_summary.json)
+- [75-clip broader summary chart](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.svg)
+- [75-clip broader serving report](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md)
+- [75-clip broader listening-study sheet](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv)
 - [broader-speech smoke publication summary](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_publication_summary.json)
 - [broader-speech smoke serving report](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_serving_stack_report.md)
 - [broader-speech smoke listening-study sheet](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_listening_study.csv)
 
 Generated full run artifacts are intentionally ignored from git and written under `modal-runs/`.
 
-The broader-speech smoke artifact is intentionally small: 3 clips across LibriSpeech, MInDS-14, and FLEURS; 7 strategies; 21 reconstructed/evaluated samples. Its purpose is to verify the new pipeline and artifact generation, not to replace the 100-clip LibriSpeech result.
+The broader-speech smoke artifact is intentionally small: 3 clips across LibriSpeech, MInDS-14, and FLEURS; 7 strategies; 21 reconstructed/evaluated samples. Its purpose is to verify the pipeline and artifact generation.
 
 ## What It Measures
 
@@ -207,15 +237,15 @@ modal-runs/encodec_librispeech_asr/
 Broader speech benchmark:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set extended --serving-microbench
 ```
 
 This builds one manifest from LibriSpeech plus public Hugging Face speech corpora such as MInDS-14 and FLEURS, then runs the same EnCodec + ASR + speaker pipeline. The corpus builder is source-configurable, so you can point it at TED-LIUM, Common Voice, VoxPopuli, or internal manifests when access is available. Upstream dataset access and licenses remain governed by each provider.
 
-Optional serving microbenchmark:
+Small smoke variant:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 4 --strategy-set extended --serving-microbench
+modal run modal_app.py --broader-speech-asr --max-clips-per-source 1 --strategy-set extended
 ```
 
 The serving report consumes `metrics.csv` and writes:
@@ -287,7 +317,7 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 
 ## Current Limitations
 
-- The tracked headline result is still LibriSpeech `dev-clean`; the broader multi-corpus run is currently a smoke validation, not a full public benchmark.
+- The tracked headline result is still LibriSpeech `dev-clean`; the broader multi-corpus result is a stronger cross-domain check, but still uses `faster-whisper tiny.en`, so absolute WER should be interpreted as evaluator stress rather than human intelligibility.
 - ASR uses `faster-whisper tiny.en`, which is a practical evaluator but not an oracle for speech quality.
 - Speaker similarity uses one pretrained embedding model.
 - `linear_selector_v1` is a selector hook with default hand-set weights; trained weights should be reported with their training data and objective.

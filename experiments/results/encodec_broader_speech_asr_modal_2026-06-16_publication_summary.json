@@ -1,0 +1,169 @@
+{
+  "best_energy_strategy": "energy_salience",
+  "listening_study": {
+    "item_count": 21,
+    "output_files": [
+      "listening_study.csv",
+      "listening_study.md",
+      "listening_study.json"
+    ],
+    "seed": 13,
+    "strategies": [
+      "acoustic_salience",
+      "energy_salience",
+      "linear_selector_v1",
+      "patch",
+      "uniform",
+      "vad_salience"
+    ]
+  },
+  "serving_stack": {
+    "row_count": 525,
+    "stack": {
+      "attention_heads": 16,
+      "bytes_per_element": 2,
+      "decode_steps": 128,
+      "hidden_size": 1024,
+      "layers": 24,
+      "name": "reference_audio_token_transformer"
+    },
+    "strategy_summary": {
+      "acoustic_salience": {
+        "decode_kv_read_reduction_ratio": 0.49958184118542664,
+        "estimated_decode_kv_read_mb_saved": 29820.16,
+        "mean_compressed_tokens": 2489.173333333333,
+        "mean_kv_cache_savings_mb": 232.97,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.4994725224900286,
+        "prefill_attention_work_ratio": 0.25041833367136757,
+        "row_count": 75.0
+      },
+      "baseline": {
+        "decode_kv_read_reduction_ratio": 0.0,
+        "estimated_decode_kv_read_mb_saved": 0.0,
+        "mean_compressed_tokens": 4974.1866666666665,
+        "mean_kv_cache_savings_mb": 0.0,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.0,
+        "prefill_attention_work_ratio": 1.0,
+        "row_count": 75.0
+      },
+      "energy_salience": {
+        "decode_kv_read_reduction_ratio": 0.49958184118542664,
+        "estimated_decode_kv_read_mb_saved": 29820.16,
+        "mean_compressed_tokens": 2489.173333333333,
+        "mean_kv_cache_savings_mb": 232.97,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.4994725224900286,
+        "prefill_attention_work_ratio": 0.25041833367136757,
+        "row_count": 75.0
+      },
+      "linear_selector_v1": {
+        "decode_kv_read_reduction_ratio": 0.49958184118542664,
+        "estimated_decode_kv_read_mb_saved": 29820.16,
+        "mean_compressed_tokens": 2489.173333333333,
+        "mean_kv_cache_savings_mb": 232.97,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.4994725224900286,
+        "prefill_attention_work_ratio": 0.25041833367136757,
+        "row_count": 75.0
+      },
+      "patch": {
+        "decode_kv_read_reduction_ratio": 0.7494049278407994,
+        "estimated_decode_kv_read_mb_saved": 44732.159999999996,
+        "mean_compressed_tokens": 1246.5066666666667,
+        "mean_kv_cache_savings_mb": 349.47,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.749240324436209,
+        "prefill_attention_work_ratio": 0.06279789019047494,
+        "row_count": 75.0
+      },
+      "uniform": {
+        "decode_kv_read_reduction_ratio": 0.49958184118542664,
+        "estimated_decode_kv_read_mb_saved": 29820.16,
+        "mean_compressed_tokens": 2489.173333333333,
+        "mean_kv_cache_savings_mb": 232.97,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.4994725224900286,
+        "prefill_attention_work_ratio": 0.25041833367136757,
+        "row_count": 75.0
+      },
+      "vad_salience": {
+        "decode_kv_read_reduction_ratio": 0.49958184118542664,
+        "estimated_decode_kv_read_mb_saved": 29820.16,
+        "mean_compressed_tokens": 2489.173333333333,
+        "mean_kv_cache_savings_mb": 232.97,
+        "mean_original_tokens": 4974.1866666666665,
+        "mean_token_reduction_ratio": 0.4994725224900286,
+        "prefill_attention_work_ratio": 0.25041833367136757,
+        "row_count": 75.0
+      }
+    }
+  },
+  "strategy_count": 7,
+  "strategy_summary": {
+    "acoustic_salience": {
+      "mean_cer": 0.3661699302682474,
+      "mean_kv_cache_savings_mb": 232.97,
+      "mean_reconstruction_snr_db": -0.25291582078387775,
+      "mean_speaker_similarity": 0.7923155935605367,
+      "mean_token_reduction_ratio": 0.49947252249002855,
+      "mean_wer": 0.49391102421031113,
+      "row_count": 75
+    },
+    "baseline": {
+      "mean_cer": 0.25900455712050774,
+      "mean_kv_cache_savings_mb": 0.0,
+      "mean_reconstruction_snr_db": 6.6255139794399165,
+      "mean_speaker_similarity": 0.9999999698003134,
+      "mean_token_reduction_ratio": 0.0,
+      "mean_wer": 0.36050012178028534,
+      "row_count": 75
+    },
+    "energy_salience": {
+      "mean_cer": 0.3658992137520581,
+      "mean_kv_cache_savings_mb": 232.97,
+      "mean_reconstruction_snr_db": -0.3560071330234131,
+      "mean_speaker_similarity": 0.7958805481592814,
+      "mean_token_reduction_ratio": 0.49947252249002855,
+      "mean_wer": 0.49052542758137746,
+      "row_count": 75
+    },
+    "linear_selector_v1": {
+      "mean_cer": 0.3698231254435251,
+      "mean_kv_cache_savings_mb": 232.97,
+      "mean_reconstruction_snr_db": -0.32221691260805524,
+      "mean_speaker_similarity": 0.7915323384602865,
+      "mean_token_reduction_ratio": 0.49947252249002855,
+      "mean_wer": 0.5037766493192897,
+      "row_count": 75
+    },
+    "patch": {
+      "mean_cer": 0.9695455205469733,
+      "mean_kv_cache_savings_mb": 349.47,
+      "mean_reconstruction_snr_db": -13.097458051583116,
+      "mean_speaker_similarity": 0.04349257617567976,
+      "mean_token_reduction_ratio": 0.7492403244362091,
+      "mean_wer": 0.9954534163566422,
+      "row_count": 75
+    },
+    "uniform": {
+      "mean_cer": 0.4716199348654628,
+      "mean_kv_cache_savings_mb": 232.97,
+      "mean_reconstruction_snr_db": -1.376159497570004,
+      "mean_speaker_similarity": 0.46022705256938934,
+      "mean_token_reduction_ratio": 0.49947252249002855,
+      "mean_wer": 0.606132435693965,
+      "row_count": 75
+    },
+    "vad_salience": {
+      "mean_cer": 0.3835118606838291,
+      "mean_kv_cache_savings_mb": 232.97,
+      "mean_reconstruction_snr_db": -0.22009582261253016,
+      "mean_speaker_similarity": 0.7918993703524272,
+      "mean_token_reduction_ratio": 0.49947252249002855,
+      "mean_wer": 0.5114631542228478,
+      "row_count": 75
+    }
+  }
+}
