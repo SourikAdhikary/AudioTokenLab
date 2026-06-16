@@ -218,6 +218,8 @@ def run_broader_speech_asr_profile(
     strategy_set: str = "extended",
     include_librispeech: bool = True,
     run_serving_microbench: bool = False,
+    skip_clips_per_source: int = 0,
+    asr_model: str = "tiny.en",
 ) -> dict:
     from audiotokenlab.corpora import (
         merge_wav_manifests,
@@ -237,6 +239,7 @@ def run_broader_speech_asr_profile(
             prepare_librispeech_slice(
                 dataset_dir / "librispeech",
                 max_clips=max_clips_per_source,
+                skip_clips=skip_clips_per_source,
                 sample_rate=24000,
             )
         )
@@ -244,6 +247,7 @@ def run_broader_speech_asr_profile(
         prepare_huggingface_speech_slice(
             dataset_dir / "huggingface",
             max_clips_per_source=max_clips_per_source,
+            skip_clips_per_source=skip_clips_per_source,
             sample_rate=24000,
         )
     )
@@ -282,7 +286,11 @@ def run_broader_speech_asr_profile(
     )
 
     rows = run_profile(str(config_path))
-    asr_rows, speaker_rows = _write_quality_artifacts(output_dir, references)
+    asr_rows, speaker_rows = _write_quality_artifacts(
+        output_dir,
+        references,
+        asr_model_name=asr_model,
+    )
     if run_serving_microbench:
         write_serving_stack_report(
             output_dir,
@@ -297,6 +305,8 @@ def run_broader_speech_asr_profile(
         "speaker_row_count": len(speaker_rows),
         "clip_count": len(clips),
         "strategy_set": strategy_set,
+        "skip_clips_per_source": skip_clips_per_source,
+        "asr_model": asr_model,
         "output_dir": str(output_dir),
         "archive_name": "encodec_broader_speech_asr.zip",
         "archive_bytes": archive,
@@ -313,7 +323,9 @@ def main(
     broader_speech_asr: bool = False,
     max_clips: int = 24,
     max_clips_per_source: int = 8,
+    skip_clips_per_source: int = 0,
     strategy_set: str = "final",
+    asr_model: str = "tiny.en",
     serving_microbench: bool = False,
 ) -> None:
     if broader_speech_asr:
@@ -322,6 +334,8 @@ def main(
             strategy_set,
             True,
             serving_microbench,
+            skip_clips_per_source,
+            asr_model,
         )
     elif librispeech_asr:
         result = run_librispeech_asr_profile.remote(max_clips, strategy_set)
@@ -343,6 +357,10 @@ def main(
         print(f"clips: {result['clip_count']}")
     if "strategy_set" in result:
         print(f"strategy set: {result['strategy_set']}")
+    if "skip_clips_per_source" in result:
+        print(f"skip clips per source: {result['skip_clips_per_source']}")
+    if "asr_model" in result:
+        print(f"asr model: {result['asr_model']}")
 
     if extract:
         extract_dir = target_root / str(result["run_id"])
@@ -450,7 +468,11 @@ def _librispeech_strategies(strategy_set: str) -> list[dict]:
     raise ValueError(f"Unsupported strategy_set: {strategy_set}")
 
 
-def _write_quality_artifacts(output_dir: Path, references: dict[str, str]) -> tuple[list[dict], list[dict]]:
+def _write_quality_artifacts(
+    output_dir: Path,
+    references: dict[str, str],
+    asr_model_name: str = "tiny.en",
+) -> tuple[list[dict], list[dict]]:
     from audiotokenlab.asr_eval import (
         transcribe_samples_with_faster_whisper,
         write_asr_artifacts,
@@ -464,11 +486,24 @@ def _write_quality_artifacts(output_dir: Path, references: dict[str, str]) -> tu
     asr_rows = transcribe_samples_with_faster_whisper(
         output_dir / "samples",
         references,
-        model_name="tiny.en",
+        model_name=asr_model_name,
         device="cpu",
         compute_type="int8",
     )
     write_asr_artifacts(output_dir, asr_rows)
+    (output_dir / "asr_evaluator.json").write_text(
+        json.dumps(
+            {
+                "backend": "faster-whisper",
+                "model_name": asr_model_name,
+                "device": "cpu",
+                "compute_type": "int8",
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
     speaker_rows = evaluate_speaker_similarity_with_speechbrain(
         output_dir / "samples",
         device="cpu",

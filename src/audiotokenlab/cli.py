@@ -36,6 +36,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target token reduction ratio for the training objective.",
     )
 
+    summarize_listening = subparsers.add_parser(
+        "summarize-listening",
+        help="Summarize a filled subjective listening-study CSV.",
+    )
+    summarize_listening.add_argument(
+        "rating_csv",
+        help="Filled listening_study.csv with MOS/intelligibility/speaker ratings.",
+    )
+    summarize_listening.add_argument(
+        "--output-dir",
+        help="Directory for listening_study_rating_summary artifacts. Defaults to CSV parent.",
+    )
+
     return parser
 
 
@@ -56,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
             "dashboard.html",
             "asr_metrics.csv",
             "asr_summary.json",
+            "asr_evaluator.json",
             "speaker_metrics.csv",
             "speaker_summary.json",
             "publication_summary.json",
@@ -65,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
             "listening_study.md",
             "serving_stack_report.json",
             "serving_stack_report.md",
+            "listening_study_rating_summary.json",
+            "listening_study_rating_summary.md",
         ):
             path = run_dir / name
             status = "ok" if path.exists() else "missing"
@@ -83,6 +99,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote trained selector: {args.output}")
         print(f"label: {strategy['label']}")
         print(f"weights: {strategy['weights']}")
+        return 0
+
+    if args.command == "summarize-listening":
+        from audiotokenlab.listening_study import summarize_listening_ratings
+
+        rating_csv = Path(args.rating_csv)
+        output_dir = Path(args.output_dir) if args.output_dir else rating_csv.parent
+        summary = summarize_listening_ratings(rating_csv, output_dir)
+        print(f"rated items: {summary['rated_item_count']} / {summary['row_count']}")
+        print(f"wrote listening rating summary: {output_dir}")
         return 0
 
     parser.error(f"unknown command: {args.command}")

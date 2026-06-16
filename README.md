@@ -7,6 +7,7 @@
 [![Datasets: LibriSpeech+](https://img.shields.io/badge/datasets-LibriSpeech%20%2B%20HF%20speech-blue)](https://www.openslr.org/12/)
 [![Run: 100 clips](https://img.shields.io/badge/run-100%20clips%20%7C%20800%20samples-111827)](experiments/results/encodec_librispeech_asr_modal_2026-06-15.json)
 [![Broader Run: 75 clips](https://img.shields.io/badge/broader-75%20clips%20%7C%20525%20samples-0f766e)](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_publication_summary.json)
+[![Held-out Selector: 30 clips](https://img.shields.io/badge/held--out-30%20clips%20%7C%20240%20samples-7c2d12)](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_publication_summary.json)
 
 **Audio-token compression benchmarks for speech and voice-model infrastructure.**
 
@@ -78,6 +79,30 @@ Modal run:             ap-GvQq49rJPkHf3SMC3joT5H
 
 This mixed-domain run is harder than LibriSpeech for `tiny.en`, so absolute WER is higher. The important signal is still the same-budget comparison: `energy_salience` keeps roughly 50% token reduction while improving WER by 11.56 percentage points over uniform dropping and preserving much more speaker identity.
 
+## Held-Out Trained Selector Result
+
+`trained_selector_v1` was distilled from the 75-clip broader run, then evaluated on a fresh held-out slice that skips the first 25 valid clips per source and uses a stronger ASR evaluator:
+
+```text
+LibriSpeech dev-clean: 10 held-out clips
+MInDS-14 en-US:        10 held-out clips
+FLEURS en_us:          10 held-out clips
+Strategies:            8
+Evaluated samples:     240
+ASR evaluator:         faster-whisper small.en
+Modal run:             ap-OaT2jqTQV5pGMO8mLoe16i
+```
+
+| Strategy | Token Reduction | Mean WER | Speaker Sim | KV Savings |
+| --- | ---: | ---: | ---: | ---: |
+| `baseline` | 0.00% | 38.31% | 1.000 | 0.00 MB |
+| `uniform` | 49.95% | 49.93% | 0.466 | 228.25 MB |
+| `energy_salience` | 49.95% | 48.91% | 0.817 | 228.25 MB |
+| `trained_selector_v1` | 49.95% | 48.10% | 0.821 | 228.25 MB |
+| `patch` | 74.94% | 99.87% | 0.055 | 342.43 MB |
+
+On this held-out slice, `trained_selector_v1` is the best 50% reduction strategy by WER and speaker similarity. The confidence intervals are still wide because this is a compact credit-aware run, but it closes the main validation gap: the trained selector is no longer only a fitted artifact plus smoke test.
+
 ## Result Artifacts
 
 Tracked, repo-visible artifacts:
@@ -91,6 +116,15 @@ Tracked, repo-visible artifacts:
 - [75-clip broader serving report](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md)
 - [75-clip broader listening-study sheet](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv)
 - [75-clip trained selector artifact](experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json)
+- [held-out trained selector publication summary](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_publication_summary.json)
+- [held-out trained selector ASR summary](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_asr_summary.json)
+- [held-out trained selector speaker summary](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_speaker_summary.json)
+- [held-out trained selector ASR evaluator metadata](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_asr_evaluator.json)
+- [held-out trained selector summary chart](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_summary_chart.svg)
+- [held-out trained selector serving report](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_serving_stack_report.md)
+- [held-out trained selector listening-study sheet](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study.csv)
+- [held-out listening-study rating summary JSON](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study_rating_summary.json)
+- [held-out listening-study rating summary Markdown](experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study_rating_summary.md)
 - [broader-speech smoke publication summary](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_publication_summary.json)
 - [broader-speech smoke serving report](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_serving_stack_report.md)
 - [broader-speech smoke listening-study sheet](experiments/results/encodec_broader_speech_asr_smoke_2026-06-15_listening_study.csv)
@@ -260,10 +294,16 @@ PYTHONPATH=src python3 -m audiotokenlab train-selector \
 Evaluate the trained selector alongside the extended baselines:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set trained --serving-microbench
+modal run modal_app.py \
+  --broader-speech-asr \
+  --max-clips-per-source 10 \
+  --skip-clips-per-source 25 \
+  --strategy-set trained \
+  --asr-model small.en \
+  --serving-microbench
 ```
 
-Remote smoke validation for `strategy_set=trained`: `ap-zN30fQb7Yz3jV025WF9ssr`.
+Remote held-out validation for `strategy_set=trained`: `ap-OaT2jqTQV5pGMO8mLoe16i`. Earlier smoke validation: `ap-zN30fQb7Yz3jV025WF9ssr`.
 
 The serving report consumes `metrics.csv` and writes:
 
@@ -283,6 +323,15 @@ listening_study.json
 ```
 
 The CSV is an anonymized rating sheet for MOS, intelligibility, speaker match, and artifact notes.
+
+After ratings are filled in:
+
+```bash
+PYTHONPATH=src python3 -m audiotokenlab summarize-listening \
+  modal-runs/encodec_broader_speech_asr/listening_study.csv
+```
+
+This writes `listening_study_rating_summary.json` and `listening_study_rating_summary.md`.
 
 ## Repository Layout
 
@@ -334,11 +383,12 @@ This repo is not trying to reproduce those systems end to end. It builds the mea
 
 ## Current Limitations
 
-- The tracked headline result is still LibriSpeech `dev-clean`; the broader multi-corpus result is a stronger cross-domain check, but still uses `faster-whisper tiny.en`, so absolute WER should be interpreted as evaluator stress rather than human intelligibility.
-- ASR uses `faster-whisper tiny.en`, which is a practical evaluator but not an oracle for speech quality.
+- The tracked headline LibriSpeech and broader runs are engineering benchmarks, not publication-grade estimates.
+- The held-out trained-selector run is compact and credit-aware at 30 clips, so confidence intervals are still wide.
+- ASR uses `faster-whisper` evaluators, which are practical regression tests but not oracles for speech quality.
 - Speaker similarity uses one pretrained embedding model.
-- `linear_selector_v1` is a selector hook with default hand-set weights; trained weights should be reported with their training data and objective.
-- The current salience policies are heuristic, not learned token selectors.
+- `trained_selector_v1` is distilled from strategy-level benchmark outcomes, not trained from frame-level labels.
+- Listening-study sheets and summarization are implemented, but human ratings are not included in the repo.
 - KV-cache savings are architecture estimates, not measurements from a deployed audio transformer.
 
 ## Roadmap
@@ -359,13 +409,13 @@ Completed:
 - [x] VAD-aware selector baseline
 - [x] Linear learned-selector integration point
 - [x] Trained selector weight artifact distilled from ASR and speaker outcomes
+- [x] Held-out trained-selector benchmark with `faster-whisper small.en`
 - [x] Subjective listening-study artifact generation
+- [x] Subjective listening-study rating summarizer
 - [x] Transformer serving-stack report and CUDA microbenchmark
 
 Next:
 
-- [ ] Evaluate `trained_selector_v1` on a fresh broader benchmark run
-- [ ] Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks
 - [ ] Collect human listening ratings and summarize MOS/intelligibility/speaker-match results
 - [ ] Integrate a production-grade audio-token transformer or voice-agent serving loop
 - [ ] Add more licensed or internal speech corpora through the source-configurable corpus builder

@@ -26,7 +26,10 @@ from audiotokenlab.profiling import estimate_kv_cache_mb, profile_clip
 from audiotokenlab.publication import write_publication_artifacts
 from audiotokenlab.reporting import summarize_by_strategy
 from audiotokenlab.runner import run_profile
-from audiotokenlab.listening_study import write_listening_study_artifacts
+from audiotokenlab.listening_study import (
+    summarize_listening_ratings,
+    write_listening_study_artifacts,
+)
 from audiotokenlab.selector_training import train_selector_from_artifacts
 from audiotokenlab.serving import write_serving_stack_report
 from audiotokenlab.speaker_eval import summarize_speaker, write_speaker_artifacts
@@ -177,6 +180,22 @@ class PipelineTest(unittest.TestCase):
                 "LibriSpeech/dev-clean/333/300/333-300-0000.flac",
                 "LibriSpeech/dev-clean/111/100/111-100-0001.flac",
             ],
+        )
+
+    def test_librispeech_selection_can_be_offset_for_heldout_runs(self) -> None:
+        names = [
+            "LibriSpeech/dev-clean/111/100/111-100-0000.flac",
+            "LibriSpeech/dev-clean/111/100/111-100-0001.flac",
+            "LibriSpeech/dev-clean/222/200/222-200-0000.flac",
+            "LibriSpeech/dev-clean/222/200/222-200-0001.flac",
+        ]
+        transcripts = {Path(name).stem: "text" for name in names}
+
+        selected = select_librispeech_flacs(names, transcripts, max_clips=4)[2:4]
+
+        self.assertEqual(
+            [Path(name).stem for name in selected],
+            ["111-100-0001", "222-200-0001"],
         )
 
     def test_compression_reduces_tokens(self) -> None:
@@ -779,6 +798,30 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(summary["item_count"], 1)
         self.assertIn("mos_1_5", rating_sheet)
         self.assertIn("atl_0001", rating_sheet)
+
+    def test_summarize_listening_ratings_writes_strategy_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rating_csv = root / "listening_study.csv"
+            rating_csv.write_text(
+                "stimulus_id,clip_id,strategy,sample_path,reference_text,hypothesis_text,"
+                "wer,cer,speaker_similarity,mos_1_5,intelligibility_1_5,"
+                "speaker_match_1_5,artifact_notes\n"
+                "atl_0001,clip_a,uniform,samples/a.wav,hello,helo,0.5,0.2,0.7,3,4,2,\n"
+                "atl_0002,clip_b,uniform,samples/b.wav,hello,hello,0,0,0.9,5,5,4,\n"
+                "atl_0003,clip_c,energy_salience,samples/c.wav,hello,hello,0,0,0.95,,,,\n",
+                encoding="utf-8",
+            )
+
+            summary = summarize_listening_ratings(rating_csv, root)
+
+            summary_json_exists = (root / "listening_study_rating_summary.json").exists()
+            summary_md_exists = (root / "listening_study_rating_summary.md").exists()
+
+        self.assertEqual(summary["rated_item_count"], 2)
+        self.assertEqual(summary["strategy_summary"]["uniform"]["mos_1_5"]["mean"], 4.0)
+        self.assertTrue(summary_json_exists)
+        self.assertTrue(summary_md_exists)
 
     def test_serving_stack_report_estimates_transformer_savings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

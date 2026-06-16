@@ -1,0 +1,26 @@
+{
+  "overall": {
+    "intelligibility_1_5": {
+      "count": 0,
+      "mean": 0.0
+    },
+    "mos_1_5": {
+      "count": 0,
+      "mean": 0.0
+    },
+    "rated_item_count": 0,
+    "speaker_match_1_5": {
+      "count": 0,
+      "mean": 0.0
+    }
+  },
+  "rated_item_count": 0,
+  "rating_csv": "experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study.csv",
+  "rating_fields": [
+    "mos_1_5",
+    "intelligibility_1_5",
+    "speaker_match_1_5"
+  ],
+  "row_count": 22,
+  "strategy_summary": {}
+}

@@ -67,6 +67,49 @@ def write_listening_study_artifacts(
     return summary
 
 
+def summarize_listening_ratings(
+    rating_csv_path: Path,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
+    rows = _read_csv_dicts(rating_csv_path)
+    rating_fields = [
+        "mos_1_5",
+        "intelligibility_1_5",
+        "speaker_match_1_5",
+    ]
+    strategy_groups: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        if not _has_any_rating(row, rating_fields):
+            continue
+        strategy_groups.setdefault(row.get("strategy", ""), []).append(row)
+
+    by_strategy = {
+        strategy: _summarize_rating_rows(strategy_rows, rating_fields)
+        for strategy, strategy_rows in sorted(strategy_groups.items())
+    }
+    rated_rows = [row for strategy_rows in strategy_groups.values() for row in strategy_rows]
+    summary = {
+        "rating_csv": str(rating_csv_path),
+        "row_count": len(rows),
+        "rated_item_count": len(rated_rows),
+        "rating_fields": rating_fields,
+        "overall": _summarize_rating_rows(rated_rows, rating_fields),
+        "strategy_summary": by_strategy,
+    }
+
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "listening_study_rating_summary.json").write_text(
+            json.dumps(summary, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        _write_rating_summary_markdown(
+            output_dir / "listening_study_rating_summary.md",
+            summary,
+        )
+    return summary
+
+
 def _select_study_rows(
     rows: list[dict[str, str]],
     max_items: int,
@@ -98,6 +141,24 @@ def _select_study_rows(
     return selected
 
 
+def _has_any_rating(row: dict[str, str], rating_fields: list[str]) -> bool:
+    return any(row.get(field, "").strip() for field in rating_fields)
+
+
+def _summarize_rating_rows(
+    rows: list[dict[str, str]],
+    rating_fields: list[str],
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {"rated_item_count": len(rows)}
+    for field in rating_fields:
+        values = [_to_float(row.get(field)) for row in rows if row.get(field, "").strip()]
+        summary[field] = {
+            "count": len(values),
+            "mean": sum(values) / len(values) if values else 0.0,
+        }
+    return summary
+
+
 def _balanced_strategy_sample(
     rows: list[dict[str, str]],
     count: int,
@@ -122,6 +183,27 @@ def _balanced_strategy_sample(
             if len(selected) >= count:
                 break
     return selected
+
+
+def _write_rating_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
+    lines = [
+        "# Listening Study Rating Summary",
+        "",
+        f"Rated items: {summary['rated_item_count']} / {summary['row_count']}",
+        "",
+        "| Strategy | Rated Items | MOS | Intelligibility | Speaker Match |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for strategy, row in summary["strategy_summary"].items():
+        lines.append(
+            "| "
+            f"`{strategy}` | "
+            f"{row['rated_item_count']} | "
+            f"{row['mos_1_5']['mean']:.2f} | "
+            f"{row['intelligibility_1_5']['mean']:.2f} | "
+            f"{row['speaker_match_1_5']['mean']:.2f} |"
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_study_csv(path: Path, rows: list[dict[str, Any]]) -> None:

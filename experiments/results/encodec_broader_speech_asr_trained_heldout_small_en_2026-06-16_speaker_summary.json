@@ -1,0 +1,38 @@
+{
+  "mean_speaker_similarity": 0.7007408083435924,
+  "row_count": 240,
+  "strategy_summary": {
+    "acoustic_salience": {
+      "mean_speaker_similarity": 0.8126483917236328,
+      "row_count": 30
+    },
+    "baseline": {
+      "mean_speaker_similarity": 0.9999999721844991,
+      "row_count": 30
+    },
+    "energy_salience": {
+      "mean_speaker_similarity": 0.8174385031064352,
+      "row_count": 30
+    },
+    "linear_selector_v1": {
+      "mean_speaker_similarity": 0.8183324535687765,
+      "row_count": 30
+    },
+    "patch": {
+      "mean_speaker_similarity": 0.05456956601701677,
+      "row_count": 30
+    },
+    "trained_selector_v1": {
+      "mean_speaker_similarity": 0.8211991528669993,
+      "row_count": 30
+    },
+    "uniform": {
+      "mean_speaker_similarity": 0.46554070015748344,
+      "row_count": 30
+    },
+    "vad_salience": {
+      "mean_speaker_similarity": 0.8161977271238963,
+      "row_count": 30
+    }
+  }
+}

@@ -31,6 +31,7 @@ def prepare_huggingface_speech_slice(
     output_dir: Path,
     sources: list[dict[str, Any]] | None = None,
     max_clips_per_source: int = 8,
+    skip_clips_per_source: int = 0,
     sample_rate: int = 24000,
 ) -> Path:
     try:
@@ -63,6 +64,7 @@ def prepare_huggingface_speech_slice(
             )
             dataset = dataset.cast_column(audio_column, Audio(sampling_rate=sample_rate))
             selected = 0
+            valid_seen = 0
             for index, item in enumerate(dataset):
                 audio = item.get(audio_column)
                 transcript = str(item.get(text_column, "")).strip()
@@ -71,7 +73,11 @@ def prepare_huggingface_speech_slice(
                 samples, decoded_sample_rate = _decode_audio(audio, sample_rate)
                 if not samples:
                     continue
-                clip_id = _safe_clip_id(source_name, selected)
+                source_valid_index = valid_seen
+                valid_seen += 1
+                if source_valid_index < skip_clips_per_source:
+                    continue
+                clip_id = _safe_clip_id(source_name, source_valid_index)
                 wav_path = wav_dir / f"{clip_id}.wav"
                 write_wav(wav_path, samples, decoded_sample_rate)
                 manifest_clips.append(

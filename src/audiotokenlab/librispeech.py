@@ -17,6 +17,7 @@ def prepare_librispeech_slice(
     output_dir: Path,
     archive_url: str = DEFAULT_LIBRISPEECH_DEV_CLEAN_URL,
     max_clips: int = 4,
+    skip_clips: int = 0,
     sample_rate: int = 24000,
     ffmpeg_bin: str = "ffmpeg",
 ) -> Path:
@@ -50,8 +51,8 @@ def prepare_librispeech_slice(
         selected_names = select_librispeech_flacs(
             sorted(flac_members),
             transcripts,
-            max_clips=max_clips,
-        )
+            max_clips=max_clips + max(0, skip_clips),
+        )[max(0, skip_clips): max(0, skip_clips) + max_clips]
         selected_flacs = [flac_members[name] for name in selected_names]
 
         manifest_clips = []

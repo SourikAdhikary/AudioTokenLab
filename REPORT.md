@@ -158,9 +158,30 @@ Tracked artifact:
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
 ```
 
-This is not yet a held-out result. The next benchmark should run `--strategy-set trained` to evaluate `trained_selector_v1` against the extended baselines on fresh clips.
-
 Remote smoke validation for loading and running the trained selector: https://modal.com/apps/sourikadhikary/main/ap-zN30fQb7Yz3jV025WF9ssr
+
+Held-out validation:
+
+```text
+Modal run:             ap-OaT2jqTQV5pGMO8mLoe16i
+Fresh slice:           skip first 25 valid clips per source, then take 10 per source
+Total clips:           30
+Evaluated samples:     240
+ASR evaluator:         faster-whisper small.en, CPU int8
+Strategy set:          trained
+```
+
+| Strategy | Token Reduction | Mean WER | CER | Speaker Sim | KV Savings |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `baseline` | 0.00% | 38.31% | 32.40% | 1.000 | 0.00 MB |
+| `uniform` | 49.95% | 49.93% | 43.54% | 0.466 | 228.25 MB |
+| `energy_salience` | 49.95% | 48.91% | 42.07% | 0.817 | 228.25 MB |
+| `linear_selector_v1` | 49.95% | 52.13% | 44.27% | 0.818 | 228.25 MB |
+| `vad_salience` | 49.95% | 50.45% | 43.74% | 0.816 | 228.25 MB |
+| `trained_selector_v1` | 49.95% | 48.10% | 41.80% | 0.821 | 228.25 MB |
+| `patch` | 74.94% | 99.87% | 94.25% | 0.055 | 342.43 MB |
+
+On the fresh held-out slice, `trained_selector_v1` is the best 50% reduction strategy by WER and speaker similarity. The run is intentionally compact to respect Modal credit constraints, so its confidence intervals are wide; it should be read as a validation checkpoint, not a final statistical claim.
 
 Serving-stack report:
 
@@ -182,6 +203,15 @@ experiments/results/encodec_broader_speech_asr_modal_2026-06-16_summary_chart.sv
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_serving_stack_report.md
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_listening_study.csv
 experiments/results/encodec_broader_speech_asr_modal_2026-06-16_trained_selector.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_publication_summary.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_asr_summary.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_speaker_summary.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_asr_evaluator.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_summary_chart.svg
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_serving_stack_report.md
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study.csv
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study_rating_summary.json
+experiments/results/encodec_broader_speech_asr_trained_heldout_small_en_2026-06-16_listening_study_rating_summary.md
 ```
 
 The earlier 3-clip smoke artifacts remain in `experiments/results/` as pipeline validation history.
@@ -213,7 +243,13 @@ PYTHONPATH=src python3 -m audiotokenlab train-selector \
 Evaluate trained selector:
 
 ```bash
-modal run modal_app.py --broader-speech-asr --max-clips-per-source 25 --strategy-set trained --serving-microbench
+modal run modal_app.py \
+  --broader-speech-asr \
+  --max-clips-per-source 10 \
+  --skip-clips-per-source 25 \
+  --strategy-set trained \
+  --asr-model small.en \
+  --serving-microbench
 ```
 
 The serving report writes:
@@ -235,6 +271,20 @@ listening_study.json
 
 The CSV is an anonymized rating sheet for MOS, intelligibility, speaker match, and artifact notes. It is generated from the existing ASR and speaker outputs, so it can be shared with listeners without changing the benchmark pipeline.
 
+After ratings are filled in:
+
+```bash
+PYTHONPATH=src python3 -m audiotokenlab summarize-listening \
+  modal-runs/encodec_broader_speech_asr/listening_study.csv
+```
+
+This writes:
+
+```text
+listening_study_rating_summary.json
+listening_study_rating_summary.md
+```
+
 ## Launch Summary
 
 Short version:
@@ -245,12 +295,18 @@ Broader version:
 
 > I extended it to a 75-clip mixed speech run across LibriSpeech, MInDS-14, and FLEURS. On this harder mixed-domain set, uniform 2x dropping hit 60.6% WER, while energy salience kept the same 50% token reduction at 49.1% WER and much higher speaker similarity.
 
+Trained-selector version:
+
+> I then distilled the mixed-domain benchmark into a learned selector and evaluated it on a fresh held-out slice with `faster-whisper small.en`. At the same 50% token reduction, `trained_selector_v1` reached 48.1% WER and 0.821 speaker similarity, beating uniform dropping and the hand-set salience baselines on this compact validation run.
+
 Numbers to mention:
 
 - 100 real speech clips
 - 800 reconstructed samples
 - 75 broader speech clips
 - 525 broader reconstructed/evaluated samples
+- 30 held-out trained-selector clips
+- 240 held-out trained-selector samples
 - Modal L4 run
 - EnCodec 24 kHz tokens
 - `faster-whisper` WER/CER
@@ -258,23 +314,25 @@ Numbers to mention:
 - 49.96% token reduction
 - 36.72% WER for uniform dropping vs 14.77% WER for acoustic salience
 - broader run: 60.61% WER for uniform dropping vs 49.05% WER for energy salience
+- held-out run: 49.93% WER for uniform dropping vs 48.10% WER for `trained_selector_v1`
 - broader serving report: 0.250x prefill attention-work ratio at roughly 50% token reduction
 - best tuned energy variant: `energy_tuned_e4_t1_o2`
 
 ## Current Limitations
 
-- 100 LibriSpeech clips and 75 broader clips are useful engineering benchmarks, but still not publication-grade estimates.
-- `faster-whisper` `tiny.en` is a convenient evaluator, not an oracle for speech quality.
-- Mixed-domain baseline WER is high with `tiny.en`; broader absolute WER should be interpreted as evaluator stress.
+- 100 LibriSpeech clips, 75 broader clips, and 30 held-out selector clips are useful engineering benchmarks, but still not publication-grade estimates.
+- The held-out trained-selector run is compact and credit-aware, so its confidence intervals are wide.
+- `faster-whisper` evaluators are convenient regression tests, not oracles for speech quality.
+- Mixed-domain baseline WER is high; broader absolute WER should be interpreted as evaluator stress.
 - Speaker similarity is measured with one pretrained embedding model; subjective voice quality and prosody are outside the v1 metric scope.
 - `vad_salience` is stronger than raw frame energy, but it is still deterministic signal processing rather than a trained VAD.
-- `trained_selector_v1` is distilled from strategy-level benchmark outcomes; it is not yet trained from frame-level labels or validated on held-out clips.
+- `trained_selector_v1` is distilled from strategy-level benchmark outcomes; it is not yet trained from frame-level labels.
+- Listening-study sheets and summarization are implemented, but human ratings are not included in the repo.
 - The serving stack currently benchmarks transformer-shaped token workloads, not a production voice-agent model with live traffic.
 
 ## Next Research Steps
 
-1. Evaluate `trained_selector_v1` on fresh broader clips.
-2. Collect subjective listening ratings for the generated study sheet.
-3. Add a stronger ASR evaluator for mixed-domain absolute WER sanity checks.
-4. Train a frame-level selector once frame labels or pairwise preference labels are available.
-5. Swap the reference PyTorch transformer microbenchmark for a selected production-grade audio-token model.
+1. Collect subjective listening ratings for the generated study sheet.
+2. Train a frame-level selector once frame labels or pairwise preference labels are available.
+3. Add more licensed or internal speech corpora through the source-configurable corpus builder.
+4. Swap the reference PyTorch transformer microbenchmark for a selected production-grade audio-token model.
